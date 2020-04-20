@@ -397,3 +397,137 @@ posterior[1] + posterior[2]
 ```
 
     ## [1] 0.75
+
+2H1. Suppose there are two species of panda bear. Both are equally
+common in the wild and live in the same places. They look exactly alike
+and eat the same food, and there is yet no genetic assay capable of
+telling them apart. They differ however in their family sizes. Species A
+gives birth to twins 10% of the time, otherwise birthing a single
+infant. Species B births twins 20% of the time, otherwise birthing
+singleton infants. Assume these numbers are known with certainty, from
+many years of field research.
+
+Now suppose you are managing a captive panda breeding program. You have
+a new female panda of unknown species, and she has just given birth to
+twins. What is the probability that her next birth will also be twins?
+
+``` r
+a_likelihood <- 0.1
+b_likelihood <- 0.2 
+
+likelihood <- c(
+  a_likelihood,
+  b_likelihood
+) 
+
+prior <- rep(1, length(likelihood))
+
+unstd.posterior <- likelihood * prior
+posterior <- unstd.posterior / sum(unstd.posterior)
+posterior[1] * 0.1 + posterior[2] * 0.2
+```
+
+    ## [1] 0.1666667
+
+2H2. Recall all the facts from the problem above. Now compute the
+probability that the panda we have is from species A, assuming we have
+observed only the first birth and that it was twins.
+
+``` r
+a_likelihood <- 0.1
+b_likelihood <- 0.2  
+
+prior <- rep(1, length(likelihood))
+
+unstd.posterior <- likelihood * prior
+posterior <- unstd.posterior / sum(unstd.posterior)
+posterior[1]
+```
+
+    ## [1] 0.3333333
+
+2H3. Continuing on from the previous problem, suppose the same panda
+mother has a second birth and that it is not twins, but a singleton
+infant. Compute the posterior probability that this panda is species A.
+
+``` r
+a_likelihood <- 0.1 * 0.9
+b_likelihood <- 0.2 * 0.8
+
+likelihood <- c(
+  a_likelihood,
+  b_likelihood
+)
+
+prior <- rep(1, length(likelihood))
+
+unstd.posterior <- likelihood * prior
+posterior <- unstd.posterior / sum(unstd.posterior)
+posterior[1]
+```
+
+    ## [1] 0.36
+
+2H4. A common boast of Bayesian statisticians is that Bayesian inference
+makes it easy to use all of the data, even if the data are of different
+types.
+
+So suppose now that a veterinarian comes along who has a new genetic
+test that she claims can identify the species of our mother panda. But
+the test, like all tests, is imperfect. This is the information you have
+about the test:
+
+• The probability it correctly identifies a species A panda is 0.8.
+
+• The probability it correctly identifies a species B panda is 0.65.
+
+The vet administers the test to your panda and tells you that the test
+is positive for species A. First ignore your previous information from
+the births and compute the posterior probability that your panda is
+species A. Then redo your calculation, now using the birth data as well.
+
+Lets ignore the information about births for calculating the posterior
+probability that the panda is species A.
+
+``` r
+a_likelihood <- 0.8
+b_likelihood <- 0.65
+
+likelihood <- c(
+  a_likelihood,
+  b_likelihood
+)
+
+prior <- rep(1, length(likelihood))
+
+unstd.posterior <- likelihood * prior
+posterior <- unstd.posterior / sum(unstd.posterior)
+
+posterior[1]
+```
+
+    ## [1] 0.5517241
+
+Now, lets consider the information about births while calculating the
+posterior probability that the panda is from species A.
+
+``` r
+a_likelihood <- 0.1 * 0.9
+b_likelihood <- 0.2 * 0.8
+
+likelihood <- c(
+  a_likelihood,
+  b_likelihood
+)
+
+prior <- rep(1, length(likelihood))
+
+unstd.posterior_births <- likelihood * prior
+posterior_births <- unstd.posterior_births / sum(unstd.posterior_births)
+
+composite_unstd_posterior <- posterior * posterior_births
+composite_posterior <- composite_unstd_posterior / sum(composite_unstd_posterior)
+composite_unstd_posterior[1]
+```
+
+    ## [1] 0.1986207
