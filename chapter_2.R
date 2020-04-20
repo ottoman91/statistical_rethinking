@@ -25,6 +25,7 @@ unstd.posterior <- prior * likelihood
 #standardize the posterior, so it sums to 1
 posterior <- unstd.posterior / sum(unstd.posterior)
 
+
 # R code 2.4
 #display the posteriors calculated in R code 2.3
 plot(
