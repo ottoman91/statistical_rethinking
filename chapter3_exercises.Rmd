@@ -88,4 +88,84 @@ HPDI(samples, prob = 0.66)
 PI(samples, prob = 0.60)
 ```
 
-0.5185185 and 0.7557558 contain 60% of the posterior probability
+0.5185185 and 0.7557558 contain 60% of the posterior probability 
+
+3M1. Suppose the globe tossing data had turned out to be 8 water in 15 tosses. Construct the posterior distribution, using grid approximation. Use the same flat prior as before.
+
+```{r}
+p_grid_3m1 <- seq(from = 0, to = 1, length.out = 1000)
+prior <- rep(1, 1000)
+likelihood <- dbinom(8, size = 15, prob = p_grid_3m1)
+posterior_3m1 <- prior * likelihood
+posterior_3m1 <- posterior_3m1 / sum(posterior_3m1)
+plot(posterior_3m1 ~ p_grid_3m1, type = "l")
+```
+
+3M2. Draw 10,000 samples from the grid approximation from above. Then use the samples to calculate the 90% HPDI for p.
+
+```{r}
+samples <- 
+  sample(
+    p_grid_3m1,
+    prob = posterior_3m1,
+    size = 10000,
+    replace = TRUE
+  ) 
+
+HPDI(samples, prob = 0.90)
+```
+
+The 90% HPDI for p is betwen 0.3413412 and 0.7307307. 
+
+3M3. Construct a posterior predictive check for this model and data. This means simulate the distribution of samples, averaging over the posterior uncertainty in p. What is the probability of observing 8 water in 15 tosses?
+
+```{r}
+posterior_pred_check <- rbinom(10000, size = 15, prob = samples)
+sum(posterior_pred_check == 8) / 10000 
+```
+
+The probability of observing 8 water in 15 tosses is 15.06%
+
+3M4. Using the posterior distribution constructed from the new (8/15) data, now calculate the probability of observing 6 water in 9 tosses.
+
+```{r}
+posterior_pred_check <- rbinom(10000, size = 9, prob = samples)
+sum(posterior_pred_check == 6) / 10000 
+
+```
+
+The probability of observing 6 water in 9 tosses is 17.93%
+
+3M5. Start over at 3M1, but now use a prior that is zero below p = 0.5 and a constant above p = 0.5. This corresponds to prior information that a majority of the Earth’s surface is water. Repeat each problem above and compare the inferences. What difference does the better prior make? If it helps, compare inferences (using both priors) to the true value p = 0.7.
+
+```{r}
+p_grid_3m5 <- seq(from = 0, to = 1, length.out = 1000)
+prior_3m5 <- ifelse(p_grid_3m5 < 0.5, 0, 1)
+likelihood <- dbinom(8, size = 15, prob = p_grid_3m5)
+posterior_3m5 <- prior_3m5 * likelihood
+posterior_3m5 <- posterior_3m5 / sum(posterior_3m5)
+plot(posterior_3m5 ~ posterior_3m5, type = "l")
+
+```
+
+```{r}
+samples_3m5 <- 
+  sample(
+    p_grid_3m5,
+    prob = posterior_3m5,
+    size = 10000,
+    replace = TRUE
+  ) 
+
+HPDI(samples_3m5, prob = 0.90)
+```
+The 90% HPDI for p is betwen 0.5005005 and 0.7127. 
+
+```{r}
+posterior_pred_check_3m5 <- rbinom(10000, size = 15, prob = samples_3m5)
+sum(posterior_pred_check_3m5 == 8) / 10000 
+
+```
+The probability of observing 8 water in 15 tosses is 15.21%
+
+
