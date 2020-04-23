@@ -51,3 +51,42 @@ PI(samples, prob = 0.5)
 #R Code 3.13
 # Calculate Highest Posterior density interval
 HPDI(samples, prob = 0.5)
+
+# R Code 3.14
+#Report parameter with highest posterior probability (MAP)
+p_grid[which.max(posterior)]
+
+# R Code 3.15
+chainmode(samples, adj = 0.01)
+
+#R Code 3.16
+# calculating expected loss in a loss function that implies loss is proportional to distance between predicted value and actual value
+# assumed p = 0.5
+sum(posterior * abs(0.5 - p_grid))
+
+# R code 3.17
+loss <- sapply(p_grid, function(d) sum(posterior * abs(d - p_grid)))
+p_grid[which.min(loss)]
+
+# R Code 3.20
+#Sample values based on probability from binomial distribution
+dbinom(0:2, size = 2, prob = 0.7)
+
+# R Code 3.21
+#Sample data
+rbinom(1, size = 2, prob = 0.7)
+
+# R Code 3.22
+rbinom(10, size = 2, prob = 0.7)
+
+# R Code 3.23
+dummy_w <- rbinom(1000, size = 2, prob = 0.7)
+table(dummy_w) / 1e5
+
+#R Code 3.24
+dummy_w <- rbinom(1e5, size = 9, prob = 0.7)
+simplehist(dummy_w, xlab = "dummy water count")
+
+# R code 3.26
+# calculating posterior predictive distribution of number of water samples from samples
+w <- rbinom(1e4, size = 9, prob = samples)
