@@ -1,7 +1,7 @@
 Chapter 3 Exercises
 ================
 Usman Khaliq
-2020-04-22
+2020-04-23
 
 ``` r
 # Libraries
@@ -204,3 +204,139 @@ sum(posterior_pred_check_3m5 == 8) / 10000
     ## [1] 0.1589
 
 The probability of observing 8 water in 15 tosses is 15.21%
+
+``` r
+data(homeworkch3)
+sum(birth1) + sum(birth2)
+```
+
+    ## [1] 111
+
+3H1. Using grid approximation, compute the posterior distribution for
+the probability of a birth being a boy. Assume a uniform prior
+probability. Which parameter value maximizes the posterior probability?
+
+``` r
+total_births <- length(birth1) + length(birth2)
+total_boys <- sum(birth1) + sum(birth2)
+total_girls <- total_births - total_boys
+
+p_grid <- seq(from = 0, to = 1, length.out = 1000)
+prior <- rep(1, 1000)
+likelihood <- dbinom(x = total_boys, size = total_births, prob = p_grid)
+posterior_unstandardised <- likelihood * prior
+posterior <- posterior_unstandardised / sum(posterior_unstandardised)
+plot(posterior ~ p_grid, type = "l")
+```
+
+![](chapter3_exercises_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+
+``` r
+p_grid[which.max(posterior)]
+```
+
+    ## [1] 0.5545546
+
+A parameter value of 0.5545546 maximises the posterior probability.
+
+3H2. Using the sample function, draw 10,000 random parameter values from
+the posterior distribution you calculated above. Use these samples to
+estimate the 50%, 89%, and 97% highest posterior density intervals.
+
+``` r
+samples_3h2 <- sample(p_grid, prob = posterior, size = 10000, replace = TRUE)
+HPDI(samples_3h2, prob = 0.50)
+```
+
+    ##      |0.5      0.5| 
+    ## 0.5255255 0.5725726
+
+``` r
+HPDI(samples_3h2, prob = 0.89)
+```
+
+    ##     |0.89     0.89| 
+    ## 0.4964965 0.6076076
+
+``` r
+HPDI(samples_3h2, prob = 0.97)
+```
+
+    ##     |0.97     0.97| 
+    ## 0.4774775 0.6286286
+
+The 50% highest posterior density intervals are 0.5255255 and 0.5725726.
+The 89% highest posterior density intervals are 0.4964965 and 0.6076076
+The 97% highest posterior density intervals are 0.4794795 and 0.6296296
+
+3H3. Use rbinom to simulate 10,000 replicates of 200 births. You should
+end up with 10,000 numbers, each one a count of boys out of 200 births.
+Compare the distribution of predicted numbers of boys to the actual
+count in the data (111 boys out of 200 births). There are many good ways
+to visualize the simulations, but the dens command (part of the
+rethinking package) is probably the easiest way in this case. Does it
+look like the model fits the data well? That is, does the distribution
+of predictions include the actual observation as a central, likely
+outcome?
+
+``` r
+simulated_births_3h3 <- rbinom(10000, size = 200, prob = samples_3h2)
+dens(simulated_births_3h3)
+abline(v = total_boys, col = "blue")
+```
+
+![](chapter3_exercises_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+
+Yes, the model fits the data well, since the actual number of boys born
+is observed as the central, likely outcome of the model.
+
+3H4. Now compare 10,000 counts of boys from 100 simulated first borns
+only to the number of boys in the first births, birth1. How does the
+model look in this light?
+
+``` r
+likelihood <- dbinom(x = sum(birth1), size = length(birth1), prob = p_grid)
+posterior_unstandardised <- likelihood * prior
+posterior <- posterior_unstandardised / sum(posterior_unstandardised)
+samples_3h4 <- sample(p_grid, prob = posterior, size = 10000, replace = TRUE)
+simulated_births_3h4 <- rbinom(10000, size = 100, prob = samples_3h4)
+dens(simulated_births_3h4)
+abline(v = sum(birth1), col = "blue")
+```
+
+![](chapter3_exercises_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
+
+The model has fit the data well.
+
+3H5. The model assumes that sex of first and second births are
+independent. To check this assumption, focus now on second births that
+followed female first borns. Compare 10,000 simulated counts of boys to
+only those second births that followed girls. To do this correctly, you
+need to count the number of first borns who were girls and simulate that
+many births, 10,000 times. Compare the counts of boys in your
+simulations to the actual observed count of boys following girls. How
+does the model look in this light? Any guesses what is going on in these
+data?
+
+``` r
+boys_born_after_girls <- birth2[birth1 == 0]
+simulated_births_3h5 <- 
+  rbinom(
+    10000,
+    size = length(boys_born_after_girls),
+    prob = samples_3h2
+  ) 
+dens(simulated_births_3h5)
+abline(v = sum(boys_born_after_girls), col = "blue")
+```
+
+![](chapter3_exercises_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+
+The observed value is very far from the majority value suggested by the
+model, which hints at the fact that this model does not fit the data
+well, and that the sex of first and second children are not independent.
+This can either mean that there is some biological factor that dictates
+that the sex of the first child determines the sex of the second child,
+or it can also mean that the data itself might be biased, and it is most
+probably not including data about females that might be born after
+females.
