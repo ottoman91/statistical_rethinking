@@ -1,0 +1,96 @@
+---
+title: "Chapter 4"
+author: "Usman Khaliq"
+date: "`r Sys.Date()`"
+output: 
+  github_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE}
+# Libraries
+library(tidyverse)
+library(rethinking)
+```
+
+
+R Code 4.1
+
+```{r}
+pos <- replicate(1000, sum(runif(16, -1, 1)))
+hist(pos)
+```
+
+```{r}
+plot(density(pos))
+```
+
+R Code 4.2
+
+```{r}
+prod(1 + runif(12, 0, 0.1))
+```
+
+R code 4.3
+
+```{r}
+growth <- replicate(1000, prod(1 + runif(12, 0, 0.1)))
+dens(growth, norm.comp = TRUE)
+```
+
+R Code 4.4 
+
+Small effects that multiple together are approximately additive. Lets explore this phenomenon visually. 
+
+```{r}
+big <- replicate(1000, prod(1 + runif(12, 0, 0.5)))
+small <- replicate(1000, prod(1 + runif(12, 0, 0.01)))
+```
+
+```{r}
+dens(big)
+```
+
+```{r}
+dens(small)
+```
+
+R Code 4.5 
+
+Large deviations tend to produce Gaussean distributions at the log scale
+
+```{r}
+log.big <- replicate(1000, log(prod(1 + runif(12, 0., 0.5))))
+dens(log.big)
+```
+
+R Code 4.7
+
+```{r}
+data("Howell1")
+d <- Howell1
+glimpse(d)
+```
+
+Filter out heights of adults only from the dataset, since height is strongly correlated with age before adulthood 
+
+```{r}
+d2 <- 
+  d %>% 
+  filter(age >= 18) 
+
+glimpse(d2)
+```
+
+```{r}
+d2 %>% 
+  ggplot(aes(height)) +
+  geom_density()
+```
+
+Adult height seems to be normally distributed, perhaps because height is a sum of many small growth factors. 
+
