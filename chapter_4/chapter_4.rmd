@@ -274,3 +274,26 @@ head(post)
 plot(post)
 ```
 
+R Code 4.37 
+
+```{r}
+plot(d2$height ~ d2$weight)
+```
+
+R Code 4.38 
+
+Fit a linear model.
+
+```{r}
+m4.3 <- rethinking::map(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + b * weight,
+    a ~ dnorm(178, 100),
+    b ~ dnorm(0, 10),
+    sigma ~ dunif(0, 50)
+  ),
+data = d2
+)
+```
+
