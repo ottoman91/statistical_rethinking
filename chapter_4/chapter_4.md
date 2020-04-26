@@ -1,7 +1,7 @@
 Chapter 4
 ================
 Usman Khaliq
-2020-04-25
+2020-04-26
 
 ``` r
 # Libraries
@@ -31,7 +31,7 @@ R Code 4.2
 prod(1 + runif(12, 0, 0.1))
 ```
 
-    ## [1] 1.726763
+    ## [1] 1.674814
 
 R code 4.3
 
@@ -275,8 +275,8 @@ precis(m4.1)
 ```
 
     ##             mean        sd       5.5%      94.5%
-    ## mu    154.606790 0.4120104 153.948318 155.265262
-    ## sigma   7.731629 0.2914139   7.265893   8.197365
+    ## mu    154.606843 0.4120133 153.948367 155.265320
+    ## sigma   7.731683 0.2914190   7.265939   8.197427
 
 R Code 4.29
 
@@ -296,8 +296,8 @@ precis(m4.2)
 ```
 
     ##            mean        sd      5.5%     94.5%
-    ## mu    177.86375 0.1002354 177.70356 178.02395
-    ## sigma  24.51753 0.9289204  23.03294  26.00213
+    ## mu    177.86370 0.1002354 177.70351 178.02390
+    ## sigma  24.51107 0.9283120  23.02744  25.99469
 
 R Code 4.30
 
@@ -308,8 +308,8 @@ vcov(m4.1)
 ```
 
     ##                 mu        sigma
-    ## mu    0.1697525732 0.0002129423
-    ## sigma 0.0002129423 0.0849220706
+    ## mu    0.1697549362 0.0002141146
+    ## sigma 0.0002141146 0.0849250211
 
 R Code 4.31
 
@@ -320,7 +320,7 @@ diag(vcov(m4.1))
 ```
 
     ##         mu      sigma 
-    ## 0.16975257 0.08492207
+    ## 0.16975494 0.08492502
 
 The following is a correlation matrix that tells us how changes in one
 parameter leads to corresponding changes in the other parameter
@@ -329,9 +329,9 @@ parameter leads to corresponding changes in the other parameter
 cov2cor(vcov(m4.1))
 ```
 
-    ##               mu      sigma
-    ## mu    1.00000000 0.00177355
-    ## sigma 0.00177355 1.00000000
+    ##                mu       sigma
+    ## mu    1.000000000 0.001783271
+    ## sigma 0.001783271 1.000000000
 
 R Code 4.32
 
@@ -344,15 +344,493 @@ head(post)
 ```
 
     ##         mu    sigma
-    ## 1 154.8877 8.063421
-    ## 2 154.2290 7.434237
-    ## 3 154.4346 8.160725
-    ## 4 153.9413 7.566373
-    ## 5 154.4845 7.397681
-    ## 6 154.3235 7.481701
+    ## 1 154.9494 7.484731
+    ## 2 155.1267 8.099193
+    ## 3 154.2801 7.286260
+    ## 4 154.7702 7.693325
+    ## 5 154.0143 7.858913
+    ## 6 154.3117 8.012382
 
 ``` r
 plot(post)
 ```
 
 ![](chapter_4_files/figure-gfm/unnamed-chunk-33-1.png)<!-- -->
+
+R Code 4.37
+
+``` r
+plot(d2$height ~ d2$weight)
+```
+
+![](chapter_4_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+
+R Code 4.38
+
+Fit a linear model.
+
+``` r
+m4.3 <- rethinking::map(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + b * weight,
+    a ~ dnorm(178, 100),
+    b ~ dnorm(0, 10),
+    sigma ~ dunif(0, 50)
+  ),
+data = d2
+)
+```
+
+R code 4.40
+
+``` r
+precis(m4.3)
+```
+
+    ##              mean         sd        5.5%       94.5%
+    ## a     113.9036904 1.90528367 110.8586791 116.9487017
+    ## b       0.9044931 0.04192046   0.8374961   0.9714901
+    ## sigma   5.0719110 0.19115737   4.7664046   5.3774174
+
+R Code 4.41
+
+``` r
+cov2cor(vcov(m4.3))
+```
+
+    ##                   a             b         sigma
+    ## a      1.0000000000 -0.9898830275  0.0009608935
+    ## b     -0.9898830275  1.0000000000 -0.0009634135
+    ## sigma  0.0009608935 -0.0009634135  1.0000000000
+
+R Code 4.42
+
+Lets center the values now using Centering
+
+``` r
+d2$weight.c <- d2$weight - mean(d2$weight)
+```
+
+R Code 4.43
+
+Now, lets refit the model using the centered values of the weights
+
+``` r
+m4.4 <- rethinking::map(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + b * weight.c,
+    a ~ dnorm(178, 100),
+    b ~ dnorm(0, 10),
+    sigma ~ dunif(0, 50)
+  ),
+  data = d2
+)
+```
+
+``` r
+precis(m4.4, corr = TRUE)
+```
+
+    ##              mean         sd       5.5%       94.5%
+    ## a     154.5972648 0.27033119 154.165223 155.0293063
+    ## b       0.9050104 0.04192765   0.838002   0.9720189
+    ## sigma   5.0718813 0.19115455   4.766379   5.3773832
+
+``` r
+cov2cor(vcov(m4.4))
+```
+
+    ##                   a             b         sigma
+    ## a      1.000000e+00 -2.255427e-09  4.802626e-05
+    ## b     -2.255427e-09  1.000000e+00 -3.354715e-05
+    ## sigma  4.802626e-05 -3.354715e-05  1.000000e+00
+
+R Code 4.45
+
+Lets superimpose the MAP values for mean height over the actual data
+
+``` r
+plot(height ~ weight, data = d2)
+abline(a = coef(m4.3)["a"], b = coef(m4.3)["b"])
+```
+
+![](chapter_4_files/figure-gfm/unnamed-chunk-42-1.png)<!-- -->
+
+R Code 4.46
+
+Lets appreciate that the posterior distribution contains multiple fit
+lines and not just one. Lets extract some samples from the model.
+
+``` r
+post <- extract.samples(m4.3)
+```
+
+``` r
+post[1:5,]
+```
+
+    ##          a         b    sigma
+    ## 1 110.5875 0.9726238 5.374387
+    ## 2 110.6633 0.9791111 5.232169
+    ## 3 115.5391 0.8710168 4.950270
+    ## 4 115.0610 0.8869631 5.125474
+    ## 5 113.5718 0.9194315 5.004538
+
+R Code 4.48
+
+Lets display the scatter lines for specific chunks of the points, to
+show how the fit lines converge as more data is added.
+
+``` r
+N <- 10
+dN <- d2[1:N, ]
+mN <- rethinking::map(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + b * weight,
+    a ~ dnorm(178, 100),
+    b ~ dnorm(0, 10),
+    sigma ~ dunif(0, 50)
+  ), 
+  data = dN
+)
+```
+
+Lets plot the first 20 lines
+
+``` r
+#extract 20 samples from the posterior
+post <- extract.samples(mN, n = 20)
+
+#display raw data and sample size
+plot(
+  dN$weight,
+  dN$height,
+  xlim = range(d2$weight),
+  ylim = range(d2$height),
+  col = rangi2,
+  xlab = "weight",
+  ylab = "height"
+  ) 
+mtext(concat("N =", N)) 
+
+#plot the lines with transparency
+for(i in 1:20)
+  abline(a = post$a[i], b = post$b[i], col = col.alpha("black", 0.3))
+```
+
+![](chapter_4_files/figure-gfm/unnamed-chunk-46-1.png)<!-- -->
+
+Lets plot 20 lines for N = 50
+
+``` r
+N <- 50
+dN <- d2[1:N, ]
+mN <- rethinking::map(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + b * weight,
+    a ~ dnorm(178, 100),
+    b ~ dnorm(0, 10),
+    sigma ~ dunif(0, 50)
+  ), 
+  data = dN
+)
+```
+
+``` r
+#extract 20 samples from the posterior
+post <- extract.samples(mN, n = 20)
+
+#display raw data and sample size
+plot(
+  dN$weight,
+  dN$height,
+  xlim = range(d2$weight),
+  ylim = range(d2$height),
+  col = rangi2,
+  xlab = "weight",
+  ylab = "height"
+  ) 
+mtext(concat("N =", N)) 
+
+#plot the lines with transparency
+for(i in 1:20)
+  abline(a = post$a[i], b = post$b[i], col = col.alpha("black", 0.3))
+```
+
+![](chapter_4_files/figure-gfm/unnamed-chunk-48-1.png)<!-- -->
+
+Lets plot 20 lines for N = 150
+
+``` r
+N <- 150
+dN <- d2[1:N, ]
+mN <- rethinking::map(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + b * weight,
+    a ~ dnorm(178, 100),
+    b ~ dnorm(0, 10),
+    sigma ~ dunif(0, 50)
+  ), 
+  data = dN
+)
+```
+
+``` r
+#extract 20 samples from the posterior
+post <- extract.samples(mN, n = 20)
+
+#display raw data and sample size
+plot(
+  dN$weight,
+  dN$height,
+  xlim = range(d2$weight),
+  ylim = range(d2$height),
+  col = rangi2,
+  xlab = "weight",
+  ylab = "height"
+  ) 
+mtext(concat("N =", N)) 
+
+#plot the lines with transparency
+for(i in 1:20)
+  abline(a = post$a[i], b = post$b[i], col = col.alpha("black", 0.3))
+```
+
+![](chapter_4_files/figure-gfm/unnamed-chunk-50-1.png)<!-- -->
+
+Lets plot 20 lines for N = 352
+
+``` r
+N <- 352
+dN <- d2[1:N, ]
+mN <- rethinking::map(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + b * weight,
+    a ~ dnorm(178, 100),
+    b ~ dnorm(0, 10),
+    sigma ~ dunif(0, 50)
+  ), 
+  data = dN
+)
+```
+
+``` r
+#extract 20 samples from the posterior
+post <- extract.samples(mN, n = 20)
+
+#display raw data and sample size
+plot(
+  dN$weight,
+  dN$height,
+  xlim = range(d2$weight),
+  ylim = range(d2$height),
+  col = rangi2,
+  xlab = "weight",
+  ylab = "height"
+  ) 
+mtext(concat("N =", N)) 
+
+#plot the lines with transparency
+for(i in 1:20)
+  abline(a = post$a[i], b = post$b[i], col = col.alpha("black", 0.3))
+```
+
+![](chapter_4_files/figure-gfm/unnamed-chunk-52-1.png)<!-- -->
+
+From the above plots, we can see that as the sample size increases, the
+cloud of regression lines grows more compact since the model becomes
+more confident about the location of the mean.
+
+R Code 4.50
+
+Lets look at plotting regression intervals and countours. The interval
+around regression incorporates uncertainty in both alpha and beta
+values. To understand this, lets look on a single weight value, eg 50kg.
+Lets make a list of 10,000 values for mu for a weight of 50kg.
+
+``` r
+mu_at_50 <- post$a + post$b * 50
+dens(mu_at_50, col = rangi2, lwd = 2, xlab = "mu|weight = 50kg")
+```
+
+![](chapter_4_files/figure-gfm/unnamed-chunk-53-1.png)<!-- -->
+
+Now, lets find the 89% highest posterior density interval for mu at
+50kg.
+
+``` r
+HPDI(mu_at_50, prob = 0.89)
+```
+
+    ##    |0.89    0.89| 
+    ## 158.6862 159.5913
+
+R Code 4.53 The following code draws up 1000 samples by default from
+posterior distribution. Each column is a case(row) in the data, since
+there are 352 rows in d2, there will be 352 columns in the following
+
+``` r
+mu <- link(m4.3)
+str(mu)
+```
+
+    ##  num [1:1000, 1:352] 157 157 157 156 157 ...
+
+R Code 4.54
+
+With the following code block, we want to find a distribution of mu for
+each unique weight value on the horizontal axis.
+
+``` r
+#define sequence of weights to compute predictions for . These values will be on the horizontal axis
+weight.seq <- seq(from = 25, to = 70, by = 1)
+
+mu <- link(m4.3, data = data.frame(weight = weight.seq))
+str(mu)
+```
+
+    ##  num [1:1000, 1:46] 136 136 137 136 136 ...
+
+R Code 4.55
+
+Lets plot the distribution of the values of mu for each height value.
+
+``` r
+#use type "n" to hide raw data
+plot(height ~ weight, d2, type = "n")
+
+for(i in 1:100)
+  points(weight.seq, mu[i,], pch = 16, col = col.alpha(rangi2, 0.1))
+```
+
+![](chapter_4_files/figure-gfm/unnamed-chunk-57-1.png)<!-- -->
+
+In the above, each pile of points shows the Gaussean uncertainty in the
+value of mu at a specific weight value.
+
+R Code 4.56
+
+Finally, sumarise the distribution for each weight value.
+
+``` r
+mu.mean <- apply(mu, 2, mean)
+mu.HPDI <- apply(mu, 2, HPDI, prob = 0.89)
+```
+
+R Code 4.57
+
+Finally, plot `mu.mean` and `mu.HPDI` on top of the original data.
+
+``` r
+plot(height ~ weight, data = d2, col = col.alpha(rangi2, 0.5))
+
+#plot the MAP line, aka the mean mu for each weight
+lines(weight.seq, mu.mean)
+
+#plot a shaded region for 89% HPDI
+shade(mu.HPDI, weight.seq)
+```
+
+![](chapter_4_files/figure-gfm/unnamed-chunk-59-1.png)<!-- -->
+
+R Code 4.59
+
+To plot the 89% prediction interval for actual heights, we need to
+incorporate the sigma in the predictions of the heights. To do this, we
+imagine simulated heights. For any unique weight value, sample from the
+Gaussean distribution with the correct mean mu, using the value of sigma
+that was stated in the model.
+
+``` r
+sim.height <- sim(m4.3, data = list(weight = weight.seq))
+str(sim.height)
+```
+
+    ##  num [1:1000, 1:46] 135 139 146 144 135 ...
+
+R Code 4.60
+
+Summarise the simulated heights
+
+``` r
+height.PI <- apply(sim.height, 2, PI, prob = 0.89)
+```
+
+`height.PI` contains the 89% posterior prediction interval of observable
+heights across the values of weights in `weight.seq`.
+
+R Code 4.61
+
+Lets plot everything.
+
+1.  The MAP line
+2.  The shaded region of 89% of plausible mu values 3 . The boundaries
+    of the simulated heights that the model expects.
+
+<!-- end list -->
+
+``` r
+plot(height ~ weight, data = d2, col = col.alpha(rangi2, 0.5))
+
+#draw MAP line
+lines(weight.seq, mu.mean)
+
+#draw HPDI region for line
+shade(mu.HPDI, weight.seq)
+
+# draw PI region for simulated heights
+shade(height.PI, weight.seq)
+```
+
+![](chapter_4_files/figure-gfm/unnamed-chunk-62-1.png)<!-- -->
+
+R Code 4.65
+
+``` r
+d$weight.s <- (d$weight - mean(d$weight)) / sd(d$weight)
+```
+
+R Code 4.66
+
+``` r
+d$weight.s2 <- d$weight.s^2
+
+m4.5 <- rethinking::map(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + b1 * weight.s + b2 * weight.s2,
+    a ~ dnorm(178, 100),
+    b1 ~ dnorm(0, 10),
+    b2 ~ dnorm(0, 10),
+    sigma ~ dunif(0, 50)
+  ),
+  data = d
+)
+```
+
+R Code 4.68
+
+``` r
+weight.seq <- seq(from = -2.2, to = 2, length.out = 30)
+pred_dat <- list(weight.s = weight.seq, weight.s2 = weight.seq^2)
+mu <- link(m4.5, data = pred_dat)
+mu.mean <- apply(mu, 2, mean)
+mu.PI <- apply(mu, 2, PI, prob = 0.89)
+sim.height <- sim(m4.5, data = pred_dat)
+height.PI <- apply(sim.height, 2, PI, prob = 0.89)
+```
+
+``` r
+plot(height ~ weight.s, d, col = col.alpha(rangi2, 0.5))
+lines(weight.seq, mu.mean)
+shade(mu.PI, weight.seq)
+shade(height.PI, weight.seq)
+```
+
+![](chapter_4_files/figure-gfm/unnamed-chunk-66-1.png)<!-- -->
