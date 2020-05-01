@@ -458,4 +458,358 @@ The phenomena above can be described as follows:
 
 * The two variables(neocortex size and body mass) are correlated with the outcome, but in opposite directions
 * Both of the explanatory variables are positively correlated with each other 
-* Due to this, they tend to cancel each other out, unless both of the are explictly accounted for in a regression model. 
+* Due to this, they tend to cancel each other out, unless both of the are explictly accounted for in a regression model.  
+
+
+R Code 5.29 
+
+Lets explore milticollinearity by looking at predicting individual's heights using the length of their legs as predictor variables.
+
+```{r}
+#number of individuals
+N <- 100
+
+#simulate total height of each individual
+height <- rnorm(N, 10, 2)
+
+#leg as proportion of height
+leg_prop <- runif(N, 0.4, 0.5)
+
+#sim left leg as proportion + error
+leg_left <- leg_prop * height + rnorm(N, 0, 0.02)
+
+#sim right leg as proportion + error
+leg_right <- leg_prop * height + rnorm(N, 0, 0.02)
+
+#combine into data frame
+d <- data.frame(height, leg_left, leg_right)
+```
+
+R Code 5.30
+
+Now, let us explore the predicted heights from the simulated model above.
+On average, an individuals' legs are 45% of their height. According to this, the beta coefficinet of our model should be the average height(10) divided by 45% of the average height, so this would be 10 / 4.5 = 2.2
+
+```{r}
+m5.8 <- rethinking::map(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + bl * leg_left + br * leg_right,
+    a ~ dnorm(10, 100),
+    bl ~ dnorm(2, 10),
+    br ~ dnorm(2, 10),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+) 
+
+plot(precis(m5.8))
+```
+
+The visualization above shows a massive variation in the posterior distribution values for the parameter. Lets explore this in more detail. 
+
+Lets look at the bivariate posterior distributioin for `bl` and `br`.
+
+R Code 5.32
+
+```{r}
+post <- extract.samples(m5.8)
+
+plot(bl ~ br, post, col = col.alpha(rangi2, 0.1), pch = 16)
+```
+
+In the above, `bl` are `br` are very highly correlated. Since both the legs contain almost exactly the same information, when we insist on having both of them in the model, then there will be practically infinite number of combinations of bl and br that produce the same predictions. 
+
+Lets plot the posterior distribution of the sum of `bl` and `br`. 
+
+R Code 5.33
+
+```{r}
+sum_blbr <- post$bl + post$br
+dens(sum_blbr, col = rangi2, lwd = 2, xlab = "sum of bl and br")
+```
+
+From the above density plot, the mean value is in the 2.0 range. Lets see that this is also the mean value when we model the prediction by using just one leg length value.
+
+R code 5.34
+
+```{r}
+m5.9 <- rethinking::map(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + bl * leg_left,
+    a ~ dnorm(10, 100),
+    bl ~ dnorm(2, 10),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+)
+precis(m5.9)
+```
+
+When two predictor variables are very strongly correlated, including them both may lead to confusion. 
+
+R code 5.35
+
+```{r}
+data(milk)
+d <- milk
+```
+
+R code 5.36
+
+Lets model perc.fat and perc.lactose to predict kcal.per.g .
+
+```{r}
+#kcal.per.g regressed on perc.fat
+m5.10 <- rethinking::map(
+  alist(
+    kcal.per.g ~ dnorm(mu, sigma),
+    mu <- a + bf * perc.fat,
+    a ~ dnorm(0.6, 10),
+    bf ~ dnorm(0, 1),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+) 
+
+#kcal.per.g regressed on perc.lactose
+m5.11 <- rethinking::map(
+  alist(
+    kcal.per.g ~ dnorm(mu, sigma),
+    mu <- a + bl * perc.lactose,
+    a ~ dnorm(0.6, 10),
+    bl ~ dnorm(0, 1),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+)  
+
+precis(m5.10, digits = 3)
+precis(m5.11, digits = 3)
+
+```
+
+From the above, it seems that bf and bl are like mirror opposites of each other. Lets make a model where we include both of them. 
+
+R Code 5.37
+
+```{r}
+m5.12 <- rethinking::map(
+  alist(
+    kcal.per.g ~ dnorm(mu, sigma),
+    mu <- a + bl * perc.lactose + bf * perc.fat,
+    a ~ dnorm(0.6, 10),
+    bl ~ dnorm(0, 1),
+    bf ~ dnorm(0, 1),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+)   
+
+precis(m5.12, digits = 3)
+```
+
+```{r}
+plot(precis(m5.12))
+```
+
+The means for bl and bf are almsot zero. 
+
+R Code 5.38
+
+```{r}
+pairs(
+  ~ kcal.per.g + perc.fat + perc.lactose,
+  data = d,
+  col = rangi2
+)
+```
+
+From the above plots, we can see tha per.fat is positively correlated with kcal.per.g, while perc.lactose is negatively correlated. Also, perc.fat and perc.lactose are almost perfectly correlated.
+
+```{r}
+cor(d$perc.fat, d$perc.lactose)
+```
+
+R Code 5.41
+
+Now, lets explore post-treatment bias.
+
+Suppose we need to find out the growth in plants and how thats affected by fungal growth.
+
+Let's simulate some data. 
+
+```{r}
+#number of plants
+N <- 100
+
+#simulate initial height
+h0 <- rnorm(N, 10, 2)
+
+#assign treatments and simulate fungus and growth
+treatment <- rep(0:1, each = N / 2)
+fungus <- rbinom(N, size = 1, prob = 0.5 - treatment * 0.4)
+h1 <- h0 + rnorm(N, 5 - 3 * fungus)
+
+#compose a clean data frame
+d <- data.frame(h0 = h0, h1 = h1, treatment = treatment, fungus = fungus)
+```
+
+R Code 5.42
+
+Now, lets fit the simulated data into a model
+
+```{r}
+m5.13 <- rethinking::map(
+  alist(
+    h1 ~ dnorm(mu, sigma),
+    mu <- a + bh * h0 + bt * treatment + bf * fungus,
+    a ~ dnorm(0, 100),
+    c(bh, bt, bf) ~ dnorm(0, 10),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+)
+
+precis(m5.13)
+```
+
+Above, we can see that the coefficient for bt is low, whereas the coefficient for bf is negative and high. This is because fungus is a post-treatment effect, since soli treatment has its affect on growth by reducing fungus. To properly model the effect of soil treatment on growth, we need to model again, but this time removing fungus from the model.
+
+```{r}
+m5.14 <- rethinking::map(
+  alist(
+    h1 ~ dnorm(mu, sigma),
+    mu <- a + bh * h0 + bt * treatment,
+    a ~ dnorm(0, 100),
+    c(bh, bt) ~ dnorm(0, 10),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+)
+
+precis(m5.14)
+
+```
+
+Now, we can see that bt has a bigger and more positive effect on plant growth. 
+
+
+R Code 5.45
+
+Now, lets fit a categorical variable into a model.
+
+```{r}
+data("Howell1")
+d <- Howell1
+glimpse(d)
+```
+
+```{r}
+m5.15 <- rethinking::map(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + bm * male,
+    a ~ dnorm(178, 100),
+    bm ~ dnorm(0, 10),
+    sigma ~ dunif(0, 50)
+  ),
+  data = d
+)
+
+precis(m5.15)
+```
+
+The average expected height of females is 134.83. The average difference between male and female heights is 7.28. 
+
+The posterior mean of average male height is 134.83 + 7.28. However, to calculate the 
+posterior spread of average male heights, we cannot simply add the intervals for a and bm. Instead, we can derive samples from the posterior and then calculate their intervals.
+
+R Code 5.46
+
+```{r}
+post <- extract.samples(m5.15)
+mu.male <- post$a + post$bm
+PI(mu.male)
+```
+
+R Code 5.4.2 
+
+Lets explore a case where there are many categories that need to be included in a linear model.
+
+As a reference, if one has to include `k` categories in a linear model, one needs `k - 1` dummy variables.
+
+```{r}
+data(milk)
+d <- milk
+unique(d$clade)
+```
+
+Lets create dummy variables for the categories in `clade`
+
+```{r}
+d$clade.NWM <- ifelse(d$clade == "New World Monkey", 1, 0)
+d$clade.OWM <- ifelse(d$clade == "Old World Monkey", 1, 0)
+d$clade.S <- ifelse(d$clade == "Strepsirrhine", 1, 0)
+
+```
+
+Now, lets fit the model
+
+```{r}
+m5.16 <- rethinking::map(
+  alist(
+    kcal.per.g ~ dnorm(mu, sigma),
+    mu <- a + b.NWM * clade.NWM + b.OWM * clade.OWM + b.S * clade.S,
+    a ~ dnorm(0.6, 10),
+    b.NWM ~ dnorm(0, 1),
+    b.OWM ~ dnorm(0, 1),
+    b.S ~ dnorm(0, 1),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+) 
+
+precis(m5.16)
+```
+
+`a` is the average milk energy for apes, and the rest are differences from apes. 
+
+Now, lets get the posterior distribution of average milk in each categories.
+
+R Code 5.52
+
+```{r}
+#sample posterior 
+post <- extract.samples(m5.16)
+
+#compute averages for each category
+mu.ape <- post$a
+mu.NWM <- post$a + post$b.NWM
+mu.OWM <- post$a + post$b.OWM
+mu.S <- post$a + post$b.S
+
+#summarise using precis
+precis(data.frame(mu.ape, mu.NWM, mu.OWM, mu.S))
+```
+
+Another approach for modelling multiple categorical variables - use unique intercepts.
+
+R Code 5.54
+
+```{r}
+d$clade_id <- coerce_index(d$clade) 
+
+m5.16_alt <- rethinking::map(
+  alist(
+    kcal.per.g ~ dnorm(mu, sigma),
+    mu <- a[clade_id],
+    a[clade_id] ~ dnorm(0.6, 10),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+) 
+precis(m5.16_alt, depth = 2)
+```
+

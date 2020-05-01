@@ -1,7 +1,7 @@
 Chapter 5
 ================
 Usman Khaliq
-2020-04-29
+2020-04-30
 
 ``` r
 # Libraries
@@ -115,10 +115,10 @@ precis(m5.3)
 ```
 
     ##             mean        sd       5.5%      94.5%
-    ## a      9.6839836 0.2036147  9.3585680 10.0093992
-    ## bR    -0.1321705 0.2794292 -0.5787523  0.3144113
-    ## bA    -1.1347446 0.2797178 -1.5817877 -0.6877015
-    ## sigma  1.4400606 0.1443474  1.2093656  1.6707556
+    ## a      9.6839827 0.2036149  9.3585668 10.0093987
+    ## bR    -0.1321727 0.2794294 -0.5787548  0.3144094
+    ## bA    -1.1347457 0.2797181 -1.5817892 -0.6877022
+    ## sigma  1.4400620 0.1443478  1.2093664  1.6707576
 
 Lets visualize the above posterior distribution estimates
 
@@ -383,10 +383,10 @@ Now, lets observe the quadratic approximate posterior
 precis(m5.5, digits = 3)
 ```
 
-    ##              mean         sd         5.5%      94.5%
-    ## a     0.353338939 0.47071829 -0.398959803 1.10563768
-    ## bn    0.004503205 0.00694034 -0.006588799 0.01559521
-    ## sigma 0.165702598 0.02841440  0.120290904 0.21111429
+    ##              mean          sd         5.5%      94.5%
+    ## a     0.353342215 0.470717675 -0.398955544 1.10563997
+    ## bn    0.004503161 0.006940331 -0.006588829 0.01559515
+    ## sigma 0.165702382 0.028414304  0.120290836 0.21111393
 
 R Code 5.23
 
@@ -428,10 +428,10 @@ m5.6 <- rethinking::map(
 precis(m5.6)
 ```
 
-    ##              mean         sd        5.5%        94.5%
-    ## a      0.70513320 0.04870546  0.62729247 0.7829739218
-    ## bm    -0.03167421 0.02028326 -0.06409078 0.0007423665
-    ## sigma  0.15686198 0.02689762  0.11387438 0.1998495678
+    ##              mean         sd        5.5%       94.5%
+    ## a      0.70513064 0.04870516  0.62729038 0.782970902
+    ## bm    -0.03167317 0.02028314 -0.06408955 0.000743209
+    ## sigma  0.15686103 0.02689722  0.11387409 0.199847978
 
 Now, lets plot this relationship.
 
@@ -475,10 +475,10 @@ precis(m5.7)
 ```
 
     ##              mean          sd        5.5%       94.5%
-    ## a     -1.08441273 0.467550779 -1.83164918 -0.33717628
-    ## bn     0.02791702 0.007272544  0.01629409  0.03953995
-    ## bm    -0.09634892 0.022453741 -0.13223433 -0.06046351
-    ## sigma  0.11479063 0.019680911  0.08333674  0.14624453
+    ## a     -1.08453564 0.467496939 -1.83168604 -0.33738524
+    ## bn     0.02791901 0.007271707  0.01629742  0.03954060
+    ## bm    -0.09635817 0.022451154 -0.13223945 -0.06047689
+    ## sigma  0.11477742 0.019675245  0.08333257  0.14622226
 
 Now, we can see that the estimate association of both predictors with
 the outcome variables has increased. Lets visualise this relationship.
@@ -533,3 +533,468 @@ The phenomena above can be described as follows:
     each other
   - Due to this, they tend to cancel each other out, unless both of the
     are explictly accounted for in a regression model.
+
+R Code 5.29
+
+Lets explore milticollinearity by looking at predicting individual’s
+heights using the length of their legs as predictor variables.
+
+``` r
+#number of individuals
+N <- 100
+
+#simulate total height of each individual
+height <- rnorm(N, 10, 2)
+
+#leg as proportion of height
+leg_prop <- runif(N, 0.4, 0.5)
+
+#sim left leg as proportion + error
+leg_left <- leg_prop * height + rnorm(N, 0, 0.02)
+
+#sim right leg as proportion + error
+leg_right <- leg_prop * height + rnorm(N, 0, 0.02)
+
+#combine into data frame
+d <- data.frame(height, leg_left, leg_right)
+```
+
+R Code 5.30
+
+Now, let us explore the predicted heights from the simulated model
+above. On average, an individuals’ legs are 45% of their height.
+According to this, the beta coefficinet of our model should be the
+average height(10) divided by 45% of the average height, so this would
+be 10 / 4.5 = 2.2
+
+``` r
+m5.8 <- rethinking::map(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + bl * leg_left + br * leg_right,
+    a ~ dnorm(10, 100),
+    bl ~ dnorm(2, 10),
+    br ~ dnorm(2, 10),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+) 
+
+plot(precis(m5.8))
+```
+
+![](chapter_5_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
+
+The visualization above shows a massive variation in the posterior
+distribution values for the parameter. Lets explore this in more detail.
+
+Lets look at the bivariate posterior distributioin for `bl` and `br`.
+
+R Code 5.32
+
+``` r
+post <- extract.samples(m5.8)
+
+plot(bl ~ br, post, col = col.alpha(rangi2, 0.1), pch = 16)
+```
+
+![](chapter_5_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
+
+In the above, `bl` are `br` are very highly correlated. Since both the
+legs contain almost exactly the same information, when we insist on
+having both of them in the model, then there will be practically
+infinite number of combinations of bl and br that produce the same
+predictions.
+
+Lets plot the posterior distribution of the sum of `bl` and `br`.
+
+R Code 5.33
+
+``` r
+sum_blbr <- post$bl + post$br
+dens(sum_blbr, col = rangi2, lwd = 2, xlab = "sum of bl and br")
+```
+
+![](chapter_5_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
+
+From the above density plot, the mean value is in the 2.0 range. Lets
+see that this is also the mean value when we model the prediction by
+using just one leg length value.
+
+R code 5.34
+
+``` r
+m5.9 <- rethinking::map(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + bl * leg_left,
+    a ~ dnorm(10, 100),
+    bl ~ dnorm(2, 10),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+)
+precis(m5.9)
+```
+
+    ##            mean         sd      5.5%     94.5%
+    ## a     1.2127185 0.33618009 0.6754378 1.7499992
+    ## bl    1.9827877 0.07328840 1.8656587 2.0999168
+    ## sigma 0.6068487 0.04291018 0.5382699 0.6754274
+
+When two predictor variables are very strongly correlated, including
+them both may lead to confusion.
+
+R code 5.35
+
+``` r
+data(milk)
+d <- milk
+```
+
+R code 5.36
+
+Lets model perc.fat and perc.lactose to predict kcal.per.g .
+
+``` r
+#kcal.per.g regressed on perc.fat
+m5.10 <- rethinking::map(
+  alist(
+    kcal.per.g ~ dnorm(mu, sigma),
+    mu <- a + bf * perc.fat,
+    a ~ dnorm(0.6, 10),
+    bf ~ dnorm(0, 1),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+) 
+
+#kcal.per.g regressed on perc.lactose
+m5.11 <- rethinking::map(
+  alist(
+    kcal.per.g ~ dnorm(mu, sigma),
+    mu <- a + bl * perc.lactose,
+    a ~ dnorm(0.6, 10),
+    bl ~ dnorm(0, 1),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+)  
+
+precis(m5.10, digits = 3)
+```
+
+    ##             mean           sd        5.5%      94.5%
+    ## a     0.30113663 0.0356367492 0.244182217 0.35809103
+    ## bf    0.01002009 0.0009690442 0.008471371 0.01156881
+    ## sigma 0.07325819 0.0096125601 0.057895463 0.08862092
+
+``` r
+precis(m5.11, digits = 3)
+```
+
+    ##              mean           sd        5.5%        94.5%
+    ## a      1.16642775 0.0427533202  1.09809969  1.234755813
+    ## bl    -0.01057745 0.0008302777 -0.01190439 -0.009250503
+    ## sigma  0.06175077 0.0081011920  0.04880351  0.074698044
+
+From the above, it seems that bf and bl are like mirror opposites of
+each other. Lets make a model where we include both of them.
+
+R Code 5.37
+
+``` r
+m5.12 <- rethinking::map(
+  alist(
+    kcal.per.g ~ dnorm(mu, sigma),
+    mu <- a + bl * perc.lactose + bf * perc.fat,
+    a ~ dnorm(0.6, 10),
+    bl ~ dnorm(0, 1),
+    bf ~ dnorm(0, 1),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+)   
+
+precis(m5.12, digits = 3)
+```
+
+    ##               mean          sd         5.5%        94.5%
+    ## a      1.007205693 0.199950576  0.687646054  1.326765332
+    ## bl    -0.008706821 0.002438326 -0.012603737 -0.004809906
+    ## bf     0.001954388 0.002398827 -0.001879401  0.005788176
+    ## sigma  0.061058455 0.008010377  0.048256325  0.073860585
+
+``` r
+plot(precis(m5.12))
+```
+
+![](chapter_5_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+
+The means for bl and bf are almsot zero.
+
+R Code 5.38
+
+``` r
+pairs(
+  ~ kcal.per.g + perc.fat + perc.lactose,
+  data = d,
+  col = rangi2
+)
+```
+
+![](chapter_5_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
+
+From the above plots, we can see tha per.fat is positively correlated
+with kcal.per.g, while perc.lactose is negatively correlated. Also,
+perc.fat and perc.lactose are almost perfectly correlated.
+
+``` r
+cor(d$perc.fat, d$perc.lactose)
+```
+
+    ## [1] -0.9416373
+
+R Code 5.41
+
+Now, lets explore post-treatment bias.
+
+Suppose we need to find out the growth in plants and how thats affected
+by fungal growth.
+
+Let’s simulate some data.
+
+``` r
+#number of plants
+N <- 100
+
+#simulate initial height
+h0 <- rnorm(N, 10, 2)
+
+#assign treatments and simulate fungus and growth
+treatment <- rep(0:1, each = N / 2)
+fungus <- rbinom(N, size = 1, prob = 0.5 - treatment * 0.4)
+h1 <- h0 + rnorm(N, 5 - 3 * fungus)
+
+#compose a clean data frame
+d <- data.frame(h0 = h0, h1 = h1, treatment = treatment, fungus = fungus)
+```
+
+R Code 5.42
+
+Now, lets fit the simulated data into a model
+
+``` r
+m5.13 <- rethinking::map(
+  alist(
+    h1 ~ dnorm(mu, sigma),
+    mu <- a + bh * h0 + bt * treatment + bf * fungus,
+    a ~ dnorm(0, 100),
+    c(bh, bt, bf) ~ dnorm(0, 10),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+)
+
+precis(m5.13)
+```
+
+    ##             mean         sd        5.5%      94.5%
+    ## a      4.8334117 0.56440153  3.93138907  5.7354344
+    ## bh     0.9937330 0.05224574  0.91023418  1.0772317
+    ## bt     0.3352208 0.21779601 -0.01285929  0.6833009
+    ## bf    -2.6641370 0.22758716 -3.02786527 -2.3004088
+    ## sigma  0.9504526 0.06720686  0.84304304  1.0578621
+
+Above, we can see that the coefficient for bt is low, whereas the
+coefficient for bf is negative and high. This is because fungus is a
+post-treatment effect, since soli treatment has its affect on growth by
+reducing fungus. To properly model the effect of soil treatment on
+growth, we need to model again, but this time removing fungus from the
+model.
+
+``` r
+m5.14 <- rethinking::map(
+  alist(
+    h1 ~ dnorm(mu, sigma),
+    mu <- a + bh * h0 + bt * treatment,
+    a ~ dnorm(0, 100),
+    c(bh, bt) ~ dnorm(0, 10),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+)
+
+precis(m5.14)
+```
+
+    ##           mean         sd      5.5%    94.5%
+    ## a     3.032951 0.83606486 1.6967579 4.369144
+    ## bh    1.019119 0.08037206 0.8906691 1.147569
+    ## bt    1.566877 0.29349104 1.0978215 2.035932
+    ## sigma 1.463448 0.10348130 1.2980653 1.628832
+
+Now, we can see that bt has a bigger and more positive effect on plant
+growth.
+
+R Code 5.45
+
+Now, lets fit a categorical variable into a model.
+
+``` r
+data("Howell1")
+d <- Howell1
+glimpse(d)
+```
+
+    ## Rows: 544
+    ## Columns: 4
+    ## $ height <dbl> 151.7650, 139.7000, 136.5250, 156.8450, 145.4150, 163.8300, 14…
+    ## $ weight <dbl> 47.82561, 36.48581, 31.86484, 53.04191, 41.27687, 62.99259, 38…
+    ## $ age    <dbl> 63.0, 63.0, 65.0, 41.0, 51.0, 35.0, 32.0, 27.0, 19.0, 54.0, 47…
+    ## $ male   <int> 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0,…
+
+``` r
+m5.15 <- rethinking::map(
+  alist(
+    height ~ dnorm(mu, sigma),
+    mu <- a + bm * male,
+    a ~ dnorm(178, 100),
+    bm ~ dnorm(0, 10),
+    sigma ~ dunif(0, 50)
+  ),
+  data = d
+)
+
+precis(m5.15)
+```
+
+    ##             mean        sd       5.5%     94.5%
+    ## a     134.826223 1.5918779 132.282095 137.37035
+    ## bm      7.286983 2.2833484   3.637751  10.93621
+    ## sigma  27.309293 0.8279808  25.986020  28.63257
+
+The average expected height of females is 134.83. The average difference
+between male and female heights is 7.28.
+
+The posterior mean of average male height is 134.83 + 7.28. However, to
+calculate the posterior spread of average male heights, we cannot simply
+add the intervals for a and bm. Instead, we can derive samples from the
+posterior and then calculate their intervals.
+
+R Code 5.46
+
+``` r
+post <- extract.samples(m5.15)
+mu.male <- post$a + post$bm
+PI(mu.male)
+```
+
+    ##       5%      94% 
+    ## 139.4316 144.7952
+
+R Code 5.4.2
+
+Lets explore a case where there are many categories that need to be
+included in a linear model.
+
+As a reference, if one has to include `k` categories in a linear model,
+one needs `k - 1` dummy variables.
+
+``` r
+data(milk)
+d <- milk
+unique(d$clade)
+```
+
+    ## [1] Strepsirrhine    New World Monkey Old World Monkey Ape             
+    ## Levels: Ape New World Monkey Old World Monkey Strepsirrhine
+
+Lets create dummy variables for the categories in `clade`
+
+``` r
+d$clade.NWM <- ifelse(d$clade == "New World Monkey", 1, 0)
+d$clade.OWM <- ifelse(d$clade == "Old World Monkey", 1, 0)
+d$clade.S <- ifelse(d$clade == "Strepsirrhine", 1, 0)
+```
+
+Now, lets fit the model
+
+``` r
+m5.16 <- rethinking::map(
+  alist(
+    kcal.per.g ~ dnorm(mu, sigma),
+    mu <- a + b.NWM * clade.NWM + b.OWM * clade.OWM + b.S * clade.S,
+    a ~ dnorm(0.6, 10),
+    b.NWM ~ dnorm(0, 1),
+    b.OWM ~ dnorm(0, 1),
+    b.S ~ dnorm(0, 1),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+) 
+
+precis(m5.16)
+```
+
+    ##             mean         sd        5.5%      94.5%
+    ## a      0.5460975 0.03808262  0.48523411 0.60696086
+    ## b.NWM  0.1681018 0.05385708  0.08202777 0.25417579
+    ## b.OWM  0.2417067 0.06020117  0.14549362 0.33791980
+    ## b.S   -0.0379983 0.06370045 -0.13980392 0.06380732
+    ## sigma  0.1144967 0.01502809  0.09047894 0.13851451
+
+`a` is the average milk energy for apes, and the rest are differences
+from apes.
+
+Now, lets get the posterior distribution of average milk in each
+categories.
+
+R Code 5.52
+
+``` r
+#sample posterior 
+post <- extract.samples(m5.16)
+
+#compute averages for each category
+mu.ape <- post$a
+mu.NWM <- post$a + post$b.NWM
+mu.OWM <- post$a + post$b.OWM
+mu.S <- post$a + post$b.S
+
+#summarise using precis
+precis(data.frame(mu.ape, mu.NWM, mu.OWM, mu.S))
+```
+
+    ##             mean         sd      5.5%     94.5% histogram
+    ## mu.ape 0.5457300 0.03800722 0.4856528 0.6062366   ▁▁▂▇▇▁▁
+    ## mu.NWM 0.7140864 0.03826873 0.6526222 0.7752763   ▁▁▅▇▂▁▁
+    ## mu.OWM 0.7874116 0.04614242 0.7138403 0.8611132 ▁▁▁▃▇▅▂▁▁
+    ## mu.S   0.5077163 0.05113366 0.4267826 0.5907816  ▁▁▂▇▇▃▁▁
+
+Another approach for modelling multiple categorical variables - use
+unique intercepts.
+
+R Code 5.54
+
+``` r
+d$clade_id <- coerce_index(d$clade) 
+
+m5.16_alt <- rethinking::map(
+  alist(
+    kcal.per.g ~ dnorm(mu, sigma),
+    mu <- a[clade_id],
+    a[clade_id] ~ dnorm(0.6, 10),
+    sigma ~ dunif(0, 10)
+  ),
+  data = d
+) 
+precis(m5.16_alt, depth = 2)
+```
+
+    ##            mean         sd       5.5%     94.5%
+    ## a[1]  0.5455550 0.03816817 0.48455492 0.6065551
+    ## a[2]  0.7144440 0.03816817 0.65344392 0.7754441
+    ## a[3]  0.7883283 0.04674610 0.71361904 0.8630376
+    ## a[4]  0.5080091 0.05120768 0.42616931 0.5898488
+    ## sigma 0.1145054 0.01503087 0.09048312 0.1385276
