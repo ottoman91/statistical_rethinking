@@ -14,7 +14,14 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r message=FALSE, warning=FALSE}
 # Libraries
 library(tidyverse)
-library(rethinking)
+library(rethinking) 
+library(rvest)
+
+#Parameters
+
+#url for numbers for LDS membership in all US States
+url <- "https://en.wikipedia.org/wiki/The_Church_of_Jesus_Christ_of_Latter-day_Saints_membership_statistics_(United_States)"
+css_selector <- "table.wikitable:nth-child(11)"
 ```
 
 5E1. Which of the linear models below are multiple linear regressions?
@@ -196,6 +203,317 @@ precis(m)
 Answer:
 We can hypothesis that a higher divorce rate can result in more people being willing to remarry, which can in turn increase the marriage rate. We can determine this relationship by having a multivariate regression model where we use the divorce rate and the remarraige rates to regress on the marriage rate. 
 
+
+5M4. In the divorce data, States with high numbers of Mormons (members of The Church of Jesus Christ of Latter-day Saints, LDS) have much lower divorce rates than the regression models expected. Find a list of LDS population by State and use those numbers as a predictor variable, predicting divorce rate using marriage rate, median age at marriage, and percent LDS population (possibly standardized). You may want to consider transformations of the raw percent LDS variable.
+
+```{r}
+data("WaffleDivorce")
+d <- WaffleDivorce 
+
+lds_membership <-
+  url %>% 
+  read_html() %>% 
+  html_node(css = css_selector) %>% 
+  html_table() %>% 
+  as_tibble() %>% 
+  select(
+    State,
+    LDS
+  ) %>% 
+  filter(State != "Nevada") 
+
+dataset <- 
+  d %>% 
+  left_join(lds_membership, by = c("Location" = "State")) %>% 
+  mutate(
+    LDS = str_replace(LDS, "%", ""),
+    LDS = as.numeric(LDS)
+  ) 
+
+dataset <-
+dataset %>% 
+  mutate(
+    log_lds = log(LDS),
+    standardized_lds = (log_lds - mean(log_lds)) / sd(log_lds)
+  ) 
+```
+
+```{r}
+m <- rethinking::map(
+  alist(
+    Divorce ~ dnorm(mu, sigma),
+    mu <- a + br * Marriage + ba * MedianAgeMarriage + bl * standardized_lds,
+    a ~ dnorm(10, 20),
+    br ~ dnorm(0, 10),
+    ba ~ dnorm(0, 10),
+    bl ~ dnorm(0, 10),
+    sigma ~ dunif(0, 5)
+  ),
+  data = dataset
+) 
+
+precis(m)
+```
+
+From the above, we can see that marriage rate is does not have a strong correlation with the divorce rate, whereas the age of getting married is very strongly negatively correlated with divorce rates(older folks getting married are less likely to get a divorce). We can also see that states that had a higher proportion of Mormons had a lower divorce rate. 
+
+5M5. One way to reason through multiple causation hypotheses is to imagine detailed mechanisms through which predictor variables may influence outcomes. For example, it is sometimes argued that the price of gasoline (predictor variable) is positively associated with lower obesity rates (outcome variable). However, there are at least two important mechanisms by which the price of gas could reduce obesity. First, it could lead to less driving and therefore more exercise. Second, it could lead to less driving, which leads to less eating out, which leads to less consumption of huge restaurant meals. Can you outline one or more multiple regressions that address these two mechanisms? Assume you can have any predictor data you need.
+
+We could create a multiple regression model through which we can include metrics that measure the consumption of gasoline ( as a proxy for less driving), the amount of money spent by individuals on food at restaurants( as a proxy for eating out), and physical movement data from fitbits/apple watches(as a proxy for measuring exercises performed by an individual).
+
+Hard. All three exercises below use the same data, data(foxes) (partof rethinking).81 Theurban fox (Vulpes vulpes) is a successful exploiter of human habitat. Since urban foxes move in packs and defend territories, data on habitat quality and population density is also included. The data frame has five columns:
+
+(1)  group: Number of the social group the individual fox belongs to
+
+(2)  avgfood: The average amount of food available in the territory
+
+(3)  groupsize: The number of foxes in the social group
+
+(4)  area: Size of the territory
+
+(5)  weight: Body weight of the individual fox
+
+```{r}
+data("foxes")
+d <- foxes
+glimpse(d)
+```
+
+5H1. Fit two bivariate Gaussian regressions, using map: (1) body weight as a linear function of territory size (area), and (2) body weight as a linear function of groupsize. Plot the results of these regressions, displaying the MAP regression line and the 95% interval of the mean. Is either variable important for predicting fox body weight?
+
+Answer:
+
+Lets plot body weight as a linear function of territory size
+
+```{r}
+m <- rethinking::map(
+  alist(
+    weight ~ dnorm(mu, sigma),
+    mu <- a + bo * area,
+    a ~ dnorm(5, 5),
+    bo ~ dnorm(0, 5),
+    sigma ~ dunif(0, 5)
+  ),
+  data = d
+)
+
+precis(m)
+```
+
+```{r}
+#compute percentile interval of mean
+area.seq <- seq(from = min(d$area), to = max(d$area), length.out = 30)
+mu <- link(m, data = data.frame(area = area.seq))
+mu.PI <- apply(mu, 2, PI)
+
+#plot it all
+plot(weight ~ area, data = d, col = rangi2)
+abline(m)
+shade(mu.PI, area.seq)
+```
+
+Now, lets plot body weight as a linear function of group size
+
+```{r}
+m <- rethinking::map(
+  alist(
+    weight ~ dnorm(mu, sigma),
+    mu <- a + bo * groupsize,
+    a ~ dnorm(5, 5),
+    bo ~ dnorm(0, 5),
+    sigma ~ dunif(0, 5)
+  ),
+  data = d
+)
+
+precis(m)
+
+```
+
+```{r}
+#compute percentile interval of mean
+groupsize.seq <- seq(from = min(d$groupsize), to = max(d$groupsize), length.out = 30)
+mu <- link(m, data = data.frame(groupsize = groupsize.seq))
+mu.PI <- apply(mu, 2, PI)
+
+#plot it all
+plot(weight ~ groupsize, data = d, col = rangi2)
+abline(m)
+shade(mu.PI, groupsize.seq)
+
+```
+
+It seems like groupsize might have a slightly stronger negative correlation with the body weight, but both of the variables are not too important.
+
+5H2. Now fit a multiple linear regression with weight as the outcome and both area and groupsize as predictor variables. Plot the predictions of the model for each predictor, holding the other predictor constant at its mean. What does this model say about the importance of each variable? Why do you get different results than you got in the exercise just above?
+
+Answer:
+
+Lets fit the model first.
+
+```{r}
+m <- rethinking::map(
+  alist(
+    weight ~ dnorm(mu, sigma),
+    mu <- a + bo * area + b1 * groupsize,
+    a ~ dnorm(5, 5),
+    bo ~ dnorm(0, 5),
+    b1 ~ dnorm(0, 5),
+    sigma ~ dunif(0, 5)
+  ),
+  data = d
+)
+
+precis(m)
+
+```
+
+Now, lets plot the counterfactual plot for area.
+
+```{r}
+groupsize.avg <- mean(d$groupsize)
+area.seq <- seq(from = min(d$area), to = max(d$area), length.out = 30)
+pred.data <- data.frame(
+  area = area.seq,
+  groupsize = groupsize.avg
+) 
+
+#compute counterfactual mean weight
+mu <- link(m, data = pred.data)
+mu.mean <- apply(mu, 2, mean)
+mu.PI <- apply(mu, 2, PI)
+
+#simulate counterfactual weight outcomes
+weight.sim <- sim(m, data = pred.data, n = 1e4)
+
+weight.PI <- apply(weight.sim, 2, PI)
+
+#display predictions, hiding raw data with type = "n"
+plot(weight ~ area, data = d, type = "n")
+mtext("Groupsize = 0")
+lines(area.seq, mu.mean)
+shade(mu.PI, area.seq)
+shade(weight.PI, area.seq)
+```
+
+Now, lets plot the counterfactual plot for group size
+
+```{r}
+area.avg <- mean(d$area)
+groupsize.seq <- 
+  seq(from = min(d$groupsize), to = max(d$groupsize), length.out = 30)
+pred.data <- data.frame(
+  area = area.avg,
+  groupsize = groupsize.seq
+) 
+
+#compute counterfactual mean weight
+mu <- link(m, data = pred.data)
+mu.mean <- apply(mu, 2, mean)
+mu.PI <- apply(mu, 2, PI)
+
+#simulate counterfactual weight outcomes
+weight.sim <- sim(m, data = pred.data, n = 1e4)
+
+weight.PI <- apply(weight.sim, 2, PI)
+
+#display predictions, hiding raw data with type = "n"
+plot(weight ~ groupsize, data = d, type = "n")
+mtext("Area = 0")
+lines(groupsize.seq, mu.mean)
+shade(mu.PI, groupsize.seq)
+shade(weight.PI, groupsize.seq)
+
+```
+
+The bivariate models tell us that territory area is positively related to body weight, and groupsize is negatively related to body weight. These relatioships are different from the bivariate Gaussean relatioships plotted previously because this is an example of a masked relationship. Territory area and groupsize are positively related while they have opposite effects on body weight, hence these effects get cancelled out in the bivariate model.
+
+
+5H3. Finally, consider the avgfood variable. Fit two more multiple regressions: (1) body weight as an additive function of avgfood and groupsize, and (2) body weight as an additive function of all three variables, avgfood and groupsize and area. Compare the results of these models to the previous models you’ve fit, in the first two exercises. (a) Is avgfood or area abetter predictor of body weight? If you had to choose one or the other to include in a model, which would it be? Support your assessment with any tables or plots you choose. (b) When both avgfood or area are in the same model, their effects are reduced (closer to zero) and their standard errors are larger than when they are included in separate models. Can you explain this result?
+
+Lets fit a multiple regression model of predicting body weight from avgfood and groupsize
+
+```{r}
+m <- rethinking::map(
+  alist(
+    weight ~ dnorm(mu, sigma),
+    mu <- a + bo * avgfood + b1 * groupsize,
+    a ~ dnorm(5, 5),
+    bo ~ dnorm(0, 5),
+    b1 ~ dnorm(0, 5),
+    sigma ~ dunif(0, 5)
+  ),
+  data = d
+)
+
+precis(m)
+
+```
+
+The model above shows that average food has a high and positive relationship with body weight, while groupsize has a lower negative relationship with body weight. It is quite possible that average food and group size are positively correlated with each other and there is some masking effect that is happening here.
+
+Lets fit a multiple regression model of predicting body weight from avgfood, groupsize and area.
+
+```{r}
+m <- rethinking::map(
+  alist(
+    weight ~ dnorm(mu, sigma),
+    mu <- a + bo * avgfood + b1 * groupsize + b2 * area,
+    a ~ dnorm(5, 5),
+    bo ~ dnorm(0, 5),
+    b1 ~ dnorm(0, 5),
+    b2 ~ dnorm(0, 5),
+    sigma ~ dunif(0, 5)
+  ),
+  data = d
+)
+
+precis(m)
+
+```
+
+From the above, it seems that average food and area both have a positive relationship with weight. However, there might be some multicollinearity occuring that might be reducing the effect of adding both of these predictors in a model. We can therefore choose the variable that has a greater standardized slope estimate.
+
+```{r}
+d$avgfood.standardized <- (d$avgfood - mean(d$avgfood)) / sd(d$avgfood)
+m <- rethinking::map(
+  alist(
+    weight ~ dnorm(mu, sigma),
+    mu <- a + bo * avgfood.standardized + b1 * groupsize,
+    a ~ dnorm(5, 5),
+    bo ~ dnorm(0, 5),
+    b1 ~ dnorm(0, 5),
+    sigma ~ dunif(0, 5)
+  ),
+  data = d
+)
+
+precis(m)
+
+
+```
+
+```{r}
+d$area.standardized <- (d$area - mean(d$area)) / sd(d$area)
+m <- rethinking::map(
+  alist(
+    weight ~ dnorm(mu, sigma),
+    mu <- a + bo * area.standardized + b1 * groupsize,
+    a ~ dnorm(5, 5),
+    bo ~ dnorm(0, 5),
+    b1 ~ dnorm(0, 5),
+    sigma ~ dunif(0, 5)
+  ),
+  data = d
+)
+
+precis(m)
+
+```
+
+From the above, average food has a greater standardized slope estimate, and I would therefore choose it in my model for predicting weight.
+
+The phenomena described in (b) occurs due to multicollinearity, since average food and area are very strongly correlated.
 
 References:
 I used [this](https://www.rpubs.com/jmgirard/sr5) notebook as reference while understanding the questions and formulating my responses.
