@@ -1,0 +1,109 @@
+---
+title: "Chapter 6"
+author: "Usman Khaliq"
+date: "`r Sys.Date()`"
+output: 
+  github_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE}
+# Libraries
+library(tidyverse)
+library(rethinking)
+# Parameters
+
+#===============================================================================
+
+# Code
+```
+
+R Code 6.1
+
+Lets simulate data for 7 hominin species, of their average brain volumes and body mass
+
+```{r}
+sppnames <- c(
+  "afarensis", 
+  "africanus",
+  "habilis",
+  "boisei",
+  "rudolfensis",
+  "ergaster",
+  "sapiens"
+  ) 
+
+brainvolcc <- c(438, 452, 612, 521, 752, 871, 1350)
+
+masskg <- c(37.0, 35.5, 34.5, 41.5, 55.5, 61.0, 53.5)
+
+d <- data.frame(species = sppnames, brain = brainvolcc, mass = masskg)
+```
+
+Lets fit this data with increasingly complex models.
+
+First, lets fit it in a linear model that assumes tha the average brain volume of a species is a linear function of its body mass.
+
+R Code 6.2
+
+```{r}
+m6.1 <- lm(brain ~ mass, data = d)
+```
+
+Now, lets compute the R2 of this model.
+
+R Code 6.3
+
+```{r}
+1 - var(resid(m6.1)) / var(d$brain)
+```
+
+```{r}
+summary(m6.1)
+```
+
+R Code 6.4
+
+Now, lets use a more complex model that uses a second degree polynomial.
+
+```{r}
+m6.2 <- lm(brain ~ mass + I(mass^2), data = d)
+m6.3 <- lm(brain ~ mass + I(mass^2) + I(mass^3), data = d)
+m6.4 <- lm(brain ~ mass + I(mass^2) + I(mass^3) + I(mass^4), data = d)
+m6.5 <- lm(brain ~ mass + I(mass^2) + I(mass^3) + I(mass^4) + I(mass^5), data = d)
+m6.6 <- 
+  lm(
+    brain ~ mass +
+      I(mass^2) +
+      I(mass^3) +
+      I(mass^4) +
+      I(mass^5) +
+      I(mass^6),
+    data = d
+  )
+
+```
+
+R Code 6.9
+
+```{r}
+p <- c(0.3, 0.7)
+-sum(p * log(p))
+```
+
+R Code 6.10
+
+Lets use `logLik` to compute deviance
+
+```{r}
+#fit model with lm
+m6.1 <- lm(brain ~ mass, d)
+
+#compute deviance by cheating
+(-2) * logLik(m6.1)
+```
+
