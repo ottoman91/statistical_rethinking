@@ -1,0 +1,143 @@
+Chapter 6 Exercises
+================
+Usman Khaliq
+2020-05-06
+
+``` r
+# Libraries
+library(tidyverse)
+library(rethinking)
+```
+
+6E1. State the three motivating criteria that define information
+entropy. Try to express each in your own words.
+
+The following are the three motivating criteria that define information
+entropy:
+
+1)  The measure of uncertainty should be continuous, so that a small
+    change in the probabilities does not result in a massive change in
+    the uncertainty
+
+2)  The measure of uncertainty should increase as the number of events
+    increase
+
+3)  The measure of uncertainty should be additive.
+
+6E2. Suppose a coin is weighted such that, when it is tossed and lands
+on a table, it comes up heads 70% of the time. What is the entropy of
+this coin?
+
+Answer:
+
+``` r
+p <- c(0.7, 0.3)
+-sum(p * log(p))
+```
+
+    ## [1] 0.6108643
+
+6E3. Suppose a four-sided die is loaded such that, when tossed onto a
+table, it shows “1” 20%, “2” 25%, ”3” 25%, and ”4” 30% of the time. What
+is the entropy of this die?
+
+``` r
+p <- c(0.20, 0.25, 0.25, 0.3)
+-sum(p * log(p))
+```
+
+    ## [1] 1.376227
+
+6E4. Suppose another four-sided die is loaded such that it never shows
+“4”. The other three sides show equally often. What is the entropy of
+this die?
+
+``` r
+p <- c(1/3 , 1/3, 1/3)
+-sum(p * log(p))
+```
+
+    ## [1] 1.098612
+
+6M1. Write down and compare the definitions of AIC, DIC, and WAIC. Which
+of these criteria is most general? Which assumptions are required to
+transform a more general criterion into a less general one?
+
+AIC: AIC provides a measure of predictive accuracy, as measured by the
+out-of-sample deviance of a model. AIC relies on the following criteria:
+
+1)  The priors are either flat or are overwhelmed by the likelihood
+    function.
+2)  The posterior distribution is approximately multivariate Gaussean
+3)  The same size, N is much larger than the number of parameters.
+
+DIC: The DIC also assumes a multivariate Gaussean distribution like AIC,
+but it does not assume that the priors are flat.
+
+WAIC: The WAIC does not make any assumptions about the distribution of
+the posterior. It is also different from AIC and DIC because WAIC
+considers the uncertainty in prediction on a case-by-case basis, instead
+of averaging it out over the data.
+
+WAIC is the most general. If we assume that the posterior distribution
+is Gaussean, then WAIC can be converted to DIC. Furthermore, if we
+assume that the priors are flat, then DIC can be converted to AIC.
+
+6M2. Explain the difference between model selection and model averaging.
+What information is lost under model selection? What information is lost
+under model averaging?
+
+Answer:
+
+Model selection is the process of choosing a model with the lowest
+AIC/DIC/WAIC values and then discarding the other models. Under model
+selection, we lose information about the relative predictive accuracy of
+different models, and by discarding this information, we lose
+information on how confident we should be in our final model choice,
+since it is possible that the relative difference between the predictice
+accuracy of different models is either large or small.
+
+Model averaging is the process of using the DIC/WAIC values of different
+models to construct a posterior predictive distribution that helps us to
+use information about the relative accuracy of the different models.
+This helps us against overconfidence in the model structure. However,
+under model averaging, we might end up diminishing the predictive power
+of individual models.
+
+6M3. When comparing models with an information criterion, why must all
+models be fit to exactly the same observations? What would happen to the
+information criterion values, if the models were fit to different
+numbers of observations? Perform some experiments, if you are not sure.
+
+Answer:
+
+All models must be fit to exactly the same observations so that we can
+get a better sense of their out-of-sample deviance estimate. If the
+models were fit to different number of observations, then the model that
+fits in with the lesser amount of data would have better AIC/DIC/WAIC
+values as compared to the other model.
+
+6M4. What happens to the effective number of parameters, as measured by
+DIC or WAIC, as a prior becomes more concentrated? Why? Perform some
+experiments, if you are not sure.
+
+Answer:
+
+As the priors become more concentrated, the effective number of
+parameters reduce, since the skeptical priors prevent overfitting.
+
+6M5. Provide an informal explanation of why informative priors reduce
+overfitting.
+
+Answer:
+
+Informative priors reduce overfitting because they require more data for
+the values to be moved from their initial values, which prevents the
+model from learning too much from the training data.
+
+6M6. Provide an information explanation of why overly informative priors
+result in underfitting.
+
+Overly informative priors make it very difficult for the model to be
+adaptive and to learn from more data, which ends up with the model not
+learning enough from the data available, leading to underfitting.
