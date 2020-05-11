@@ -181,9 +181,9 @@ R Code 7.5
 compare(m7.3, m7.4)
 ```
 
-    ##          WAIC       SE    dWAIC      dSE    pWAIC      weight
-    ## m7.4 476.4312 15.35923  0.00000       NA 4.435232 1.00000e+00
-    ## m7.3 539.9227 13.34768 63.49147 15.15474 2.870943 1.63306e-14
+    ##          WAIC       SE    dWAIC      dSE    pWAIC       weight
+    ## m7.4 476.4565 15.29151  0.00000       NA 4.468851 1.000000e+00
+    ## m7.3 539.2545 13.20757 62.79808 15.04083 2.557811 2.309781e-14
 
 From the above, we can see that all weight is assigned to model m7.4.
 The standard error in the difference of WAIC between the two models is
@@ -274,9 +274,9 @@ compare(m7.3, m7.4, m7.5)
 ```
 
     ##          WAIC       SE     dWAIC       dSE    pWAIC       weight
-    ## m7.5 469.6433 15.11418  0.000000        NA 5.286206 9.679679e-01
-    ## m7.4 476.4602 15.29862  6.816919  6.164413 4.433733 3.203213e-02
-    ## m7.3 539.5304 13.32193 69.887082 15.175004 2.672001 6.457640e-16
+    ## m7.5 470.1199 15.21022  0.000000        NA 5.569468 9.612143e-01
+    ## m7.4 476.5402 15.37615  6.420293  6.346492 4.514297 3.878567e-02
+    ## m7.3 539.4465 13.32714 69.326576 15.321024 2.646287 8.486830e-16
 
 Model 7.5 has a weight of 0.97. However, the weight of 0.03 that is
 given to model m7.4 shows that there is slight overfitting happening in
@@ -362,11 +362,11 @@ precis(m7.5)
 ```
 
     ##             mean         sd       5.5%       94.5%
-    ## a      9.1835953 0.13641582  8.9655765  9.40161416
-    ## bA    -1.8461141 0.21848085 -2.1952887 -1.49693955
-    ## bR    -0.1843541 0.07568752 -0.3053173 -0.06339078
-    ## bAR    0.3483231 0.12749937  0.1445545  0.55209174
-    ## sigma  0.9332506 0.05067074  0.8522689  1.01423219
+    ## a      9.1835863 0.13641532  8.9655683  9.40160433
+    ## bA    -1.8461078 0.21848006 -2.1952811 -1.49693446
+    ## bR    -0.1843508 0.07568724 -0.3053136 -0.06338795
+    ## bAR    0.3483177 0.12749891  0.1445499  0.55208563
+    ## sigma  0.9332469 0.05067024  0.8522660  1.01422768
 
 In the above table, we do not see values for gamma, since it wasn’t
 estimated. However, we would have to estimate it ourselves for both
@@ -408,13 +408,13 @@ follows:
 mean(gamma.Africa)
 ```
 
-    ## [1] 0.1645059
+    ## [1] 0.1637203
 
 ``` r
 mean(gamma.notAfrica)
 ```
 
-    ## [1] -0.1848995
+    ## [1] -0.1836805
 
 These means are very close to the MAP values of mean calculated above.
 
@@ -433,3 +433,83 @@ dens(gamma.notAfrica, add = TRUE)
 ```
 
 ![](chapter_7_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+
+Linear interactions are symmetrical, and our golum cannot tell the
+difference between one symmetrical interaction and the other. Consider
+the following:
+
+Yi \~ Normal (µi σ) \[likelihood\] µi = α + γiRi + βAAi \[linear model
+of µ\] γi = βR + βARAi \[linear model of slope\]
+
+Lets now expand γi into the expression for µi
+
+μi=α+(βR+βARAi)Ri+βAAi=α+βRRi+βARAiRi+βAAi
+
+Now factor together the terms with Ai in them:
+
+μi=α+βRRi+(βA+βARRi)Ai
+
+From the above mathematical notations,we can see that for our linear
+interaction model, the following two phrasings are equally valid.
+
+1)  How much does the influence of ruggedness on GDP depend upon whether
+    the nation is in Africa?
+
+2)  How much does the influence of being in Africa on GDP depend upon
+    ruggedness?
+
+Lets plot the second interpretation below.
+
+R Code 7.17
+
+``` r
+#get minimum and maximum rugged values
+q.rugged <- range(dd$rugged)
+
+#compute lines and confidence intervals
+mu.ruggedlo <- 
+  link(m7.5, data = data.frame(rugged = q.rugged[1], cont_africa = 0:1)) 
+
+mu.ruggedlo.mean <- apply(mu.ruggedlo$mu, 2, mean)
+mu.ruggedlo.PI <- apply(mu.ruggedlo$mu, 2, PI) 
+
+mu.ruggedhi <- 
+  link(m7.5, data = data.frame(rugged = q.rugged[2], cont_africa = 0:1)) 
+
+mu.ruggedhi.mean <- apply(mu.ruggedhi$mu, 2, mean)
+mu.ruggedhi.PI <- apply(mu.ruggedhi$mu, 2, PI) 
+
+#plot it all, splitting points at  median
+med.r <- median(dd$rugged)
+ox <- ifelse(dd$rugged > med.r, 0.05, -0.05)
+plot(
+  dd$cont_africa + ox,
+  log(dd$rgdppc_2000),
+  col = ifelse(dd$rugged > med.r, rangi2, "black"),
+  xlim = c(-0.25, 1.25),
+  xaxt = "n",
+  ylab = "log GDP year 2000",
+  xlab = "continent"
+  ) 
+axis(1, at = c(0, 1), labels = c("other", "Africa"))
+lines(0:1, mu.ruggedlo.mean, lty = 2, col = "black")
+shade(mu.ruggedlo.PI, 0:1)
+lines(0:1, mu.ruggedhi.mean, col = rangi2)
+shade(mu.ruggedhi.PI, 0:1, col = col.alpha(rangi2, 0.25))
+```
+
+![](chapter_7_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+
+In the above, blue points are countries with terrain ruggedness above
+the median. Black points are countries with terrain ruggedness below the
+median. We can see from the plot that countries in Africa on avearge
+have lower GDP(due to colonization). The black line and black shaded
+region tell us the expected reduction in log GDP when we take a nation
+with minimum terrain ruggedness and change its continent.
+
+The blue line and blue shaded region show the change in GDP for a nation
+which has maximum terrain ruggedness between. We can see from this line
+that changing the continent has a very negligible effect on the GDP
+value. However, given the large area of the shaded region, this estimate
+is not very accurate. Thus, for a nation with veyr high rugged terrain,
+there is negligible effect on GDP by being in Africa.
