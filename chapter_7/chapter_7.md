@@ -1,7 +1,7 @@
 Chapter 7 - Interactions
 ================
 Usman Khaliq
-2020-05-10
+2020-05-11
 
 ``` r
 # Libraries
@@ -181,9 +181,9 @@ R Code 7.5
 compare(m7.3, m7.4)
 ```
 
-    ##          WAIC       SE    dWAIC      dSE    pWAIC       weight
-    ## m7.4 476.2279 15.22097  0.00000       NA 4.319099 1.000000e+00
-    ## m7.3 539.5817 13.29388 63.35378 14.95569 2.709898 1.749451e-14
+    ##          WAIC       SE    dWAIC      dSE    pWAIC      weight
+    ## m7.4 476.4312 15.35923  0.00000       NA 4.435232 1.00000e+00
+    ## m7.3 539.9227 13.34768 63.49147 15.15474 2.870943 1.63306e-14
 
 From the above, we can see that all weight is assigned to model m7.4.
 The standard error in the difference of WAIC between the two models is
@@ -274,9 +274,9 @@ compare(m7.3, m7.4, m7.5)
 ```
 
     ##          WAIC       SE     dWAIC       dSE    pWAIC       weight
-    ## m7.5 469.7356 15.07908  0.000000        NA 5.362823 9.721928e-01
-    ## m7.4 476.8441 15.33568  7.108519  6.166715 4.638870 2.780719e-02
-    ## m7.3 539.6894 13.24913 69.953827 15.163243 2.744424 6.272952e-16
+    ## m7.5 469.6433 15.11418  0.000000        NA 5.286206 9.679679e-01
+    ## m7.4 476.4602 15.29862  6.816919  6.164413 4.433733 3.203213e-02
+    ## m7.3 539.5304 13.32193 69.887082 15.175004 2.672001 6.457640e-16
 
 Model 7.5 has a weight of 0.97. However, the weight of 0.03 that is
 given to model m7.4 shows that there is slight overfitting happening in
@@ -284,3 +284,152 @@ m7.5. Also, the difference in the standard errors between the top two
 models is almost the same. This phenonema might also be there because
 there are only a limited number of African countries, and hence there is
 some sparsity in the data.
+
+R Code 7.10 First, lets calculate the posterior mean line and intervals
+for both plots.
+
+``` r
+rugged.seq <- seq(from = -1, to = 8, by = 0.25)
+
+mu.Africa <- link(m7.5, data = data.frame(cont_africa = 1, rugged = rugged.seq))
+mu.Africa.mean <- apply(mu.Africa$mu, 2, mean)
+mu.Africa.PI <- apply(mu.Africa$mu, 2, PI, prob = 0.97)
+
+mu.NotAfrica <- 
+  link(m7.5, data = data.frame(cont_africa = 0, rugged = rugged.seq))
+mu.NotAfrica.mean <- apply(mu.NotAfrica$mu, 2, mean)
+mu.NotAfrica.PI <- apply(mu.NotAfrica$mu, 2, PI, prob = 0.97)
+```
+
+now, lets plot the plots
+
+R Code 7.11
+
+``` r
+#plot African nations with regression
+plot(
+  log(rgdppc_2000) ~ rugged,
+  data = d.A1,
+  col = rangi2,
+  ylab = "log GDP Year 2000",
+  xlab = "Terrain Ruggedness Index"
+  ) 
+mtext("African Nations", 3)
+lines(rugged.seq, mu.Africa.mean, col = rangi2)
+shade(mu.Africa.PI, rugged.seq, col = col.alpha(rangi2, 0.3))
+```
+
+![](chapter_7_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+
+``` r
+#plot non-African nations with regression
+plot(
+  log(rgdppc_2000) ~ rugged,
+  data = d.A0,
+  col = "black",
+  ylab = "log GDP Year 2000",
+  xlab = "Terrain Ruggedness Index"
+  ) 
+mtext("Non-African Nations", 3)
+lines(rugged.seq, mu.NotAfrica.mean)
+shade(mu.NotAfrica.PI, rugged.seq)
+```
+
+![](chapter_7_files/figure-gfm/unnamed-chunk-14-2.png)<!-- -->
+
+Now above, we can see that the slopes reverse direction inside and
+outside of Africa.
+
+Interpreting interaction estimates is tricky. The following are two
+reasons for being wary about directly interpreting tables of posterior
+means and standard deviations.
+
+1)  When we add interactions to a model, it changes the meaning of
+    parameters. A “main effect” coefficient in the interaction model
+    does not mean the same thing as a coefficient of the same name in a
+    model without an interaction. In a simple linear regression, with no
+    interactions, each coefficient tells us how much the average outcome
+    changes when the predictor changes by one unit. However, in case of
+    an interaction, this does not hold true anymore, since the
+    coefficient is now dependent on other predictor variables. We can no
+    longer read these values directly from tables.
+
+For instance, in the above example, the parameter estimates are as
+follows:
+
+``` r
+precis(m7.5)
+```
+
+    ##             mean         sd       5.5%       94.5%
+    ## a      9.1835953 0.13641582  8.9655765  9.40161416
+    ## bA    -1.8461141 0.21848085 -2.1952887 -1.49693955
+    ## bR    -0.1843541 0.07568752 -0.3053173 -0.06339078
+    ## bAR    0.3483231 0.12749937  0.1445545  0.55209174
+    ## sigma  0.9332506 0.05067074  0.8522689  1.01423219
+
+In the above table, we do not see values for gamma, since it wasn’t
+estimated. However, we would have to estimate it ourselves for both
+within Africa and outside of Africa.
+
+Within Africa, gamma is as follows
+
+``` r
+-0.18 + 0.35
+```
+
+    ## [1] 0.17
+
+Outside of Africa, gamma is as follows:
+
+``` r
+-0.18 + 0.35 * 0
+```
+
+    ## [1] -0.18
+
+2)  It is difficult to incorporate uncertainty just by looking at tables
+    of numbers. Since gamma depends on parameters,and those parameters
+    have posterior distributions, gamma also has a posterior
+    distribution.
+
+We can compute the posterior distribution of gamma as follows:
+
+``` r
+post <- extract.samples(m7.5)
+gamma.Africa <- post$bR + post$bAR * 1
+gamma.notAfrica <- post$bR + post$bAR * 0
+```
+
+The means of these posterior distributions for gamma values is as
+follows:
+
+``` r
+mean(gamma.Africa)
+```
+
+    ## [1] 0.1645059
+
+``` r
+mean(gamma.notAfrica)
+```
+
+    ## [1] -0.1848995
+
+These means are very close to the MAP values of mean calculated above.
+
+Now, lets plot the distributions of gamma values within and outside of
+Africa to see where they overlap.
+
+``` r
+dens(
+  gamma.Africa, 
+  xlim = c(-0.5, 0.6),
+  ylim = c(0, 5.5),
+  xlab = "gamma",
+  col = rangi2
+  )
+dens(gamma.notAfrica, add = TRUE)
+```
+
+![](chapter_7_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
