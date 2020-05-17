@@ -1,7 +1,16 @@
 Chapter 7 - Interactions
 ================
 Usman Khaliq
-2020-05-11
+2020-05-17
+
+  - [Continuous Interactions](#continuous-interactions)
+      - [Benefits of Centering Prediction
+        Variables.](#benefits-of-centering-prediction-variables.)
+      - [R Code 7.18](#r-code-7.18)
+      - [The Un-centered model.](#the-un-centered-model.)
+      - [R Code 7.19](#r-code-7.19)
+      - [Centering and Re-estimating](#centering-and-re-estimating)
+      - [Plotting Implied Predictions.](#plotting-implied-predictions.)
 
 ``` r
 # Libraries
@@ -182,8 +191,8 @@ compare(m7.3, m7.4)
 ```
 
     ##          WAIC       SE    dWAIC      dSE    pWAIC       weight
-    ## m7.4 476.4565 15.29151  0.00000       NA 4.468851 1.000000e+00
-    ## m7.3 539.2545 13.20757 62.79808 15.04083 2.557811 2.309781e-14
+    ## m7.4 476.5891 15.41035  0.00000       NA 4.546904 1.000000e+00
+    ## m7.3 539.6292 13.35775 63.04018 15.18857 2.726874 2.046441e-14
 
 From the above, we can see that all weight is assigned to model m7.4.
 The standard error in the difference of WAIC between the two models is
@@ -274,9 +283,9 @@ compare(m7.3, m7.4, m7.5)
 ```
 
     ##          WAIC       SE     dWAIC       dSE    pWAIC       weight
-    ## m7.5 470.1199 15.21022  0.000000        NA 5.569468 9.612143e-01
-    ## m7.4 476.5402 15.37615  6.420293  6.346492 4.514297 3.878567e-02
-    ## m7.3 539.4465 13.32714 69.326576 15.321024 2.646287 8.486830e-16
+    ## m7.5 469.8784 15.09131  0.000000        NA 5.424972 9.671164e-01
+    ## m7.4 476.6411 15.39861  6.762691  6.296706 4.573945 3.288358e-02
+    ## m7.3 539.6809 13.28699 69.802487 15.168490 2.747998 6.730717e-16
 
 Model 7.5 has a weight of 0.97. However, the weight of 0.03 that is
 given to model m7.4 shows that there is slight overfitting happening in
@@ -361,12 +370,12 @@ follows:
 precis(m7.5)
 ```
 
-    ##             mean         sd       5.5%       94.5%
-    ## a      9.1835863 0.13641532  8.9655683  9.40160433
-    ## bA    -1.8461078 0.21848006 -2.1952811 -1.49693446
-    ## bR    -0.1843508 0.07568724 -0.3053136 -0.06338795
-    ## bAR    0.3483177 0.12749891  0.1445499  0.55208563
-    ## sigma  0.9332469 0.05067024  0.8522660  1.01422768
+    ##             mean        sd       5.5%       94.5%
+    ## a      9.1835833 0.1364156  8.9655648  9.40160183
+    ## bA    -1.8461058 0.2184805 -2.1952799 -1.49693179
+    ## bR    -0.1843453 0.0756874 -0.3053084 -0.06338222
+    ## bAR    0.3483126 0.1274992  0.1445443  0.55208090
+    ## sigma  0.9332488 0.0506705  0.8522675  1.01423003
 
 In the above table, we do not see values for gamma, since it wasn’t
 estimated. However, we would have to estimate it ourselves for both
@@ -408,13 +417,13 @@ follows:
 mean(gamma.Africa)
 ```
 
-    ## [1] 0.1637203
+    ## [1] 0.1624946
 
 ``` r
 mean(gamma.notAfrica)
 ```
 
-    ## [1] -0.1836805
+    ## [1] -0.1839338
 
 These means are very close to the MAP values of mean calculated above.
 
@@ -513,3 +522,342 @@ that changing the continent has a very negligible effect on the GDP
 value. However, given the large area of the shaded region, this estimate
 is not very accurate. Thus, for a nation with veyr high rugged terrain,
 there is negligible effect on GDP by being in Africa.
+
+## Continuous Interactions
+
+Another reason to be wary about using tables of numbers to interpret
+interactions is that interactions among continuous variables are
+especially opaque and difficult to interpret.
+
+Below, we will use the method of triptych to plot a panel of three
+complementary figures to show two way interaction between two variables.
+
+### Benefits of Centering Prediction Variables.
+
+The following are the two reasons why centering is useful:
+
+1)  It makes it easier to compare the coefficients in understanding a
+    model, especially when we want to compare the estimates from models
+    with and without interactions.
+
+2)  Centering the data can help us achieve a better and faster set of
+    estimates.
+
+### R Code 7.18
+
+The data used in this example is the sizes of blooms from beds of tulips
+grown in greenhouses under different soil and light conditions.
+
+``` r
+data("tulips")
+d <- tulips
+str(d)
+```
+
+    ## 'data.frame':    27 obs. of  4 variables:
+    ##  $ bed   : Factor w/ 3 levels "a","b","c": 1 1 1 1 1 1 1 1 1 2 ...
+    ##  $ water : int  1 1 1 2 2 2 3 3 3 1 ...
+    ##  $ shade : int  1 2 3 1 2 3 1 2 3 1 ...
+    ##  $ blooms: num  0 0 111 183.5 59.2 ...
+
+`water` and `shade` will be the predictor variables. `blooms` is the
+outcome variable. `water` has three levels, from low(1) to high(3).
+`shade` has three levels of light exposure, from high(1) to low(3).
+`bed` indicates a cluster of plants from the same section of the
+greenhouse.
+
+We will also be plotting the interaction effect between `water` and
+`light` by using a linear two way interaction model that is built up
+from using knowledge about the plant’s physiology to predict
+relationship between these two variables.
+
+### The Un-centered model.
+
+Lets plot the first model, which contains `water` and `shade` but no
+interaction between them, and then the model that contains interaction
+between these two predictor variables.
+
+Mathematically, the first model is as follows:
+
+Bi\~Normal(μi,σ)
+
+μi=α+βWWi+βSSi
+
+Mathematically, the second model is as follows:
+
+Bi\~Normal(μi,σ)
+
+μi=α+βWWi+βSSi+βWSWiSi,
+
+where Bi is the value of bloom on row i, Wi is the value of water, and
+Si is the value of shade.
+
+### R Code 7.19
+
+``` r
+m7.6 <-
+  rethinking::map(
+    alist(
+      blooms ~ dnorm(mu, sigma),
+      mu <- a + bW * water + bS * shade,
+      a ~ dnorm(0, 100),
+      bW ~ dnorm(0, 100),
+      bS ~ dnorm(0, 100),
+      sigma ~ dunif(0, 100)
+    ),
+    data = d,
+    method = "Nelder-Mead",
+    control = list(maxit = 1e4)
+  ) 
+
+m7.7 <-
+  rethinking::map(
+    alist(
+      blooms ~ dnorm(mu, sigma),
+      mu <- a + bW * water + bS * shade + bWS * water * shade,
+      a ~ dnorm(0, 100),
+      bW ~ dnorm(0, 100),
+      bS ~ dnorm(0, 100),
+      bWS ~ dnorm(0, 100),
+      sigma ~ dunif(0, 100)
+    ),
+    data = d,
+    method = "Nelder-Mead",
+    control = list(maxit = 1e4)
+  ) 
+```
+
+Lets examine the coefficients from these two models.
+
+``` r
+coeftab(m7.6, m7.7)
+```
+
+    ##       m7.6    m7.7   
+    ## a       53.47  -84.34
+    ## bW      76.37  151.05
+    ## bS     -38.94   35.03
+    ## sigma   57.38   46.27
+    ## bWS        NA  -39.54
+    ## nobs       27      27
+
+Lets investigate how difficult it is to just interpret coefficients from
+the table of numbers. From above, we can see that the values of `a` in
+both models vary from 53 to -118. Since `a` is the intercept in the
+model and is the predicted bloom value when the predictor values are 0,
+it is difficult to interpre this value in this un-centered dataset
+because in the original dataset, neither of the predictor variables ever
+take a value of 0.
+
+If we consider the slope values for `bW` and `bS` in `m7.6`, we can see
+that the MAP main effect for water is positive and the effect for shade
+is negative. Lets look at the standard derivatives and intervals in
+`m7.6`.
+
+``` r
+precis(m7.6)
+```
+
+    ##            mean        sd       5.5%     94.5%
+    ## a      53.46832 36.759653  -5.280702 112.21735
+    ## bW     76.36942 12.978797  55.626797  97.11205
+    ## bS    -38.93762 12.994871 -59.705935 -18.16931
+    ## sigma  57.37584  7.817268  44.882337  69.86935
+
+From the above, we can see that `bW` lies on the right side of 0 and
+`bS` lies on the left side of 0. Therefore, we can infer that the
+posterior distribution for `m7.6` suggests that water increases bloom
+while shade decreases bloom.
+
+However, if we look at the values of the slopes and intercepts for
+`m7.7`, we can see that both `bW` and `bS` are positive. Lets compare
+both of these models to see which one has a better WAIC value.
+
+``` r
+compare(m7.6, m7.7)
+```
+
+    ##          WAIC       SE    dWAIC      dSE    pWAIC      weight
+    ## m7.7 296.5457 9.966881  0.00000       NA 6.300282 0.993385824
+    ## m7.6 306.5695 9.256864 10.02381 6.361924 5.654253 0.006614176
+
+From the above, we can see that the model assigns all weight to `m7.7`.
+However, it is very difficult to interpret these tables of values
+especially in interactions without sampling from the posterior and
+plotting the model’s predictions.
+
+### Centering and Re-estimating
+
+Lets centre the predictor variables. This will fix the problem of
+maximum iterations with the BFGS optimization method, and it will also
+make the estimates easiers to interpret
+
+``` r
+d$shade.c <- d$shade - mean(d$shade)
+d$water.c <- d$water - mean(d$water)
+```
+
+``` r
+m7.8 <- rethinking::map(
+  alist(
+    blooms ~ dnorm(mu, sigma),
+    mu <- a + bW * water.c + bS * shade.c,
+    a ~ dnorm(130, 100),
+    bW ~ dnorm(0, 100),
+    bS ~ dnorm(0, 100),
+    sigma ~ dunif(0, 100)
+  ),
+  data = d,
+  start = list(a = mean(d$blooms), bW = 0, bS = 0, sigma = sd(d$blooms))
+) 
+
+m7.9 <- rethinking::map(
+  alist(
+    blooms ~ dnorm(mu, sigma),
+    mu <- a + bW * water.c + bS * shade.c + bWS * water.c * shade.c,
+    a ~ dnorm(130, 100),
+    bW ~ dnorm(0, 100),
+    bS ~ dnorm(0, 100),
+    bWs ~ dnorm(0, 100),
+    sigma ~ dunif(0, 100)
+  ),
+  data = d,
+  start = list(a = mean(d$blooms), bW = 0, bS = 0, bWS = 0, sigma = sd(d$blooms))
+)
+```
+
+    ## Caution, model may not have converged.
+
+    ## Code 1: Maximum iterations reached.
+
+``` r
+coeftab(m7.8, m7.9)
+```
+
+    ## Caution, model may not have converged.
+
+    ## Code 1: Maximum iterations reached.
+
+    ## Caution, model may not have converged.
+
+    ## Code 1: Maximum iterations reached.
+
+    ##       m7.8    m7.9   
+    ## a         129     129
+    ## bW      74.22   75.06
+    ## bS     -40.74  -41.20
+    ## sigma   57.35   45.23
+    ## bWS        NA  -52.92
+    ## bWs        NA   23.74
+    ## nobs       27      27
+
+Now, we can see that in the two models, the directions for the
+associations of `shade` are the same. We can also see that more water
+leads to more blooms, whereas an increase in shade has the opposite
+effect.
+
+With centered predictor variables, estimation worked better because
+there was less distance for the MAP values to travel to determine the
+optimum values for the model.
+
+Also, with centered predictor variables, estimates changed less across
+models.
+
+``` r
+precis(m7.9)
+```
+
+    ##            mean        sd       5.5%     94.5%
+    ## a     129.00029  8.671504  115.14155 142.85903
+    ## bW     75.05992 10.602347   58.11532  92.00452
+    ## bS    -41.19568 10.601038  -58.13819 -24.25317
+    ## bWS   -52.92216 13.056447  -73.78888 -32.05544
+    ## sigma  45.22883  6.153896   35.39371  55.06394
+    ## bWs    23.74403 99.999108 -136.07386 183.56192
+
+From the above model:
+
+  - The estimate a, is the expected value of blooms at the average
+    values of water and shade, which in this case are 0 since the data
+    has been centered.
+  - The estimate, bW, is the expected change in blooms when water is
+    increased by 1 unit and shade is at its average value of 0.
+  - The estimate, bSs, is the expected change in blooms when shade is
+    increased by 1 unit and water is at its average value of 0.
+  - The estimate, bWS, is the interaction effect. It tells us the
+    influence of water on blooms when shade is increased by 1 unit, and
+    it is also the influence of shade on blooms when water is increased
+    by 1 unit.
+
+### Plotting Implied Predictions.
+
+In a model which has interactions, the effect of changing a predictor
+depends upon the values of the other predictors. We can use a triptych
+plot to show the impact of interactions on the predictions of the model.
+
+``` r
+#make a plot window with three panels in a single row
+par(mfrow = c(1, 3)) # 1 row, 3 columns
+
+#loop over values of water.c and plot predictions 
+shade.seq <- -1:1
+for (w in -1:1) {
+  dt <- d[d$water.c == w,]
+  plot(
+    blooms ~ shade.c, 
+    data = dt,
+    col = rangi2,
+    main = paste("water.c = ", w),
+    xaxp = c(-1, 1, 2),
+    ylim = c(0, 362),
+    xlab = "shade (centered)"
+  ) 
+  
+  mu <- link(m7.9, data = data.frame(water.c = w, shade.c = shade.seq))
+  mu.mean <- apply(mu, 2, mean)
+  mu.PI <- apply(mu, 2, PI, prob = 0.97)
+  lines(shade.seq, mu.mean)
+  lines(shade.seq, mu.PI[1, ], lty = 2)
+  lines(shade.seq, mu.PI[2, ], lty = 2)
+}
+```
+
+![](chapter_7_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
+
+``` r
+#make a plot window with three panels in a single row
+par(mfrow = c(1, 3)) # 1 row, 3 columns
+
+#loop over values of water.c and plot predictions 
+shade.seq <- -1:1
+for (w in -1:1) {
+  dt <- d[d$water.c == w,]
+  plot(
+    blooms ~ shade.c, 
+    data = dt,
+    col = rangi2,
+    main = paste("water.c = ", w),
+    xaxp = c(-1, 1, 2),
+    ylim = c(0, 362),
+    xlab = "shade (centered)"
+  ) 
+  
+  mu <- link(m7.8, data = data.frame(water.c = w, shade.c = shade.seq))
+  mu.mean <- apply(mu, 2, mean)
+  mu.PI <- apply(mu, 2, PI, prob = 0.97)
+  lines(shade.seq, mu.mean)
+  lines(shade.seq, mu.PI[1, ], lty = 2)
+  lines(shade.seq, mu.PI[2, ], lty = 2)
+}
+```
+
+![](chapter_7_files/figure-gfm/unnamed-chunk-32-1.png)<!-- -->
+
+From the above triptych, we can deduce the following:
+
+  - At low levels of water, shade has a very slight positive effect on
+    blooms, but with a lot of uncertainty.
+  - At average water levels, increasing shade reduces the blooms.
+  - At very high water levels, water is no longer limiting the size of
+    blooms, and therefore shade can have a much more pronounced effect
+    on the blooms.
