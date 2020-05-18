@@ -1,0 +1,165 @@
+---
+title: "Chapter 8 - Markov Chain Monte Carlo"
+author: "Usman Khaliq"
+date: "`r Sys.Date()`"
+output: 
+  github_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE}
+# Libraries
+library(tidyverse)
+library(rethinking)
+# Parameters
+
+#===============================================================================
+
+# Code
+```
+
+## Reference
+
+I used these excellent notes from [Jose Roberto Ayala Solares](https://jroberayalas.netlify.app/post/notes-on-statistical-rethinking-chapter-8-mcmc/) while making these notes for this chapter. 
+
+## Introduction
+
+Markov Chain Monte Carlo(MCMC) is a stochastic process for estimating the posterior probability distribution by producing samples from the joint posterior distribution without maximising anything. We would not be assuming that the posterior is Gaussean, and would not be using a quadratic or other approximation methods. 
+
+The downside of using MCMC is that it requires more time to process and there is more work involved in specifying the model. 
+
+### Good King Markov and his Island Kingdom
+
+KIng Markov was the king of a circular archipelago with 10 islands. 
+
+* The islands were of different sizes. The second island had twice the population on the first island, the third had three times the population on the first island, and so no, until the tenth island had 10 times the population on the first island.
+
+* The people in all islands wanted the king to visit them, but the king also wanted to spend time on each island proportional to the number of people on each island.
+
+* The king was not a fan of planning out a schedule way in advance, and he also did not want to spend a lot of time on the sea travelling between different islands, so he decided on the following algorithm:
+
+1. Each week, the king decided between moving to an adjacent island or staying in the same island. He did this by tossing a coin.
+
+2. If the coin turned up head, the king considered moving to the adjacent island clockwise around the archipalego. If the coin turned up tails, then he considered moving to the adjacent island counterclockwise.
+
+3. To decide whether to move to the adjacent island or to remain in the current island, the king counted out a number of seashells proportional to the relative population of the island. He also counted out a number of stones equal to the relative population of the current island. 
+
+4. If the number of seashells is more than the number of stones, the King would always move to the adjacent island. However, if the number of stones is more than the number of seashells, then, the king would discard a number of stones equal to the number of seashells and place the remaining seashells and stones in a bag. He would then pull out one object from the bag, and if he pulled out a seashell, then he would go to the adjacent island, and if he pulled out a stone, then he would remain on the current island. 
+
+Thus, the probability that the king moves is equal to the number of seashells divided by the original number of stones. 
+
+Lets simulate this algorithm below.
+
+## R Code 8.1 
+
+```{r}
+num_weeks <- 1e5
+
+positions <- rep(0, num_weeks)
+
+current <- 10
+
+for (i in 1:num_weeks) {
+  #record current position
+  positions[i] <- current
+  
+  #flip coin to generate proposal
+  proposal <- current + sample(c(-1, 1), size = 1)
+  #now make sure he loops around the archipalego
+  if (proposal < 1) proposal <- 10
+  if (proposal > 10) proposal <- 1
+  
+  #move?
+  prob_move <- proposal / current
+  current <- ifelse(runif(1) < prob_move, proposal, current)
+}
+```
+
+```{r}
+tibble(
+  week = 1:1e5,
+  island = positions
+) %>% 
+  filter(week < 101) %>% 
+  ggplot(aes(week, island)) +
+  geom_point(shape = 1) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(from = 0, to = 100, by = 20)) +
+  scale_y_continuous(breaks = seq(from = 0, to = 10, by = 2)) +
+  labs(
+    title = "Results of the King's Travels Following the Metropolis Algorithm",
+    x = "Weeks",
+    y = "Island"
+  )
+```
+
+```{r}
+tibble(
+  week = 1:1e5,
+  island = positions
+) %>% 
+  mutate(island = factor(island)) %>% 
+  ggplot(aes(island)) +
+  geom_bar() +
+  labs(
+    title = "Amount of Time Spent on Each Island in the Long Run",
+    x = "Island Number",
+    y = "Number of Weeks Spent on Each Island"
+  )
+```
+
+Thus, from the above, we can see that over the long-term, the algorithm performs really well and the amount of time spent by the king on each island is proportional to the island's population.
+
+The algorithm would also work on any size archipalego, even if the king didnt know how many islands there were in total. All that he needs to know is the current population of the island and the population of the island that he wants to go next to. 
+
+## Markov Chain Monte Carlo
+
+The example above is an example of using the Metropolis Algorithm. It is used to draw samples from an unknown and usually complex target distribution. 
+* The "islands" in our objective are parameter values. They can either be discrete or continuous.
+
+* The "population size" is the posterior probability at each parameter value.
+
+* The "weeks" are samples taken from the joint posterior of the parameters in the model. 
+
+Two other contemporary algorithms that are used in MCMC are Gibbs sampling and the Hamiltonian Monte Carlo. 
+
+## Gibbs Sampling 
+
+The Metropolis algorithm works well in symmetric distributions. However, we might need to use asymmetric distributions because not only do they do a better job of handling parameters that have standard deviations around 0, but they might also help us to get an equally good image of the posterior distribution in lesser number of steps. 
+
+Gibbs sampling is a variant of the Metropolis-Hastings algorithm(that allows for asymmetric proposals). Gibbs sampling uses particular combinations of prior distributions and likelihoods that are called **conjugate pairs**. These conjugate pairs allow Gibbs sampling to make smart jumps around sampling for different parameter values. 
+
+Gibbs sampling is used in the following popular Bayesian model fits:
+
+* BUGS - Bayesian Inference Using Gibbs Sampling
+* JAGS - Just Another Gibbs Sampler
+
+However, Gibbs sampling has some limitations:
+
+* Some conjugate pairs might not make sense, and from a scientific point of view it doesnt make sense to just choose conjugate pairs that fit a model well.
+
+* In very complex models that contain thousands of parameters, Gibbs sampling becomes very inefficient. 
+
+## Hamiltonian Monte Carlo
+
+Gibbs and Metropolis sampling are highly random processes. However, Gibbs sampling gains efficiency by reducing the number of jumps and exploiting knowledge of the target distribution. 
+
+HMC is much more computationally intensive compared to Gibbs and Metropolis algorithms. 
+
+
+Lets assume that King Markov has a cousin, Monty, who has a kingdom on the mainland. Like King Markov, he also needs to spend time with his people. His advisor tells him that they can travel back and forth across the kingdom's length, with their carriage slowing down in places which have more population density and speeding up in areas which have lower population density. 
+
+The example above is analogous to how Hamiltonian Monte Carlo works in statistical applications. The vector of parameters is the "royal vehicle", while the log-posteriors provide the "surface" for the vehicle to glind on. When the log posterior is flat, the particle can float for a long time before the slope forces it to change. 
+
+The following are some limitations of HMC:
+
+* It requires continuous parameters
+* It needs to be tuned to a particular model and its data.
+* Tuning all of the parameters by hand can be a pain. 
+
+## Section 2
+
