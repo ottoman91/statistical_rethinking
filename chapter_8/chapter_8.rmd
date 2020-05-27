@@ -15,6 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # Libraries
 library(tidyverse)
 library(rethinking)
+library(rstan)
 # Parameters
 
 #===============================================================================
@@ -161,5 +162,152 @@ The following are some limitations of HMC:
 * It needs to be tuned to a particular model and its data.
 * Tuning all of the parameters by hand can be a pain. 
 
-## Section 2
+## Easy HMC: map2stan 
 
+`map2stan` is a function in the `rethinking` package that provides an interface for converting `map` estimates into Stan HMC code. To use `map2stan`, we first need to do the following:
+
+1) We need to preprocess any variable transformations
+2) Wwe need to construct a clean data frame that only contains the variables that we want to use. 
+
+## R Code 8.2 
+
+Lets explore the terrain ruggedness example. 
+
+```{r}
+data(rugged)
+d <- rugged 
+
+d$log_gdp <- log(d$rgdppc_2000) 
+
+dd <- d[complete.cases(d$rgdppc_2000), ]
+```
+
+
+## R Code 8.3 
+
+Lets fit an interaction model that predicts log-GDP from terrain ruggedness, continent and the interaction of these two variables.
+
+```{r}
+m8.1 <- rethinking::map(
+  alist(
+    log_gdp ~ dnorm(mu, sigma),
+    mu <- a + bR * rugged + bA * cont_africa + bAR * rugged * cont_africa,
+    a ~ dnorm(0, 100),
+    bR ~ dnorm(0, 10),
+    bA ~ dnorm(0, 10),
+    bAR ~ dnorm(0, 10),
+    sigma ~ dunif(0, 10)
+  ),
+  data = dd
+)
+```
+
+```{r}
+precis(m8.1)
+``` 
+
+Now, lets create a new data frame that only contains the predictor and outcome variables that we need. 
+
+## R Code 8.4 
+
+```{r}
+dd.trim <-
+  dd %>% 
+  select(
+    log_gdp,
+    rugged,
+    cont_africa
+  )
+
+glimpse(dd.trim)
+```
+
+## R Code 8.5
+
+Now, lets get samples from the posterior distribution of the STAN model.
+
+```{r}
+m8.1stan <- map2stan(
+  alist(
+    log_gdp ~ dnorm(mu, sigma),
+    mu <- a + bR * rugged + bA * cont_africa + bAR * rugged * cont_africa,
+    a ~ dnorm(0, 100),
+    bR ~ dnorm(0, 10),
+    bA ~ dnorm(0, 10),
+    bAR ~ dnorm(0, 10),
+    sigma ~ dcauchy(0, 2)
+  ),
+  data = dd.trim
+)
+```
+
+```{r}
+precis(m8.1stan)
+```
+
+A few things about the table above:
+
+* The interval boundaries are for highest posterior density intervals (HPDI), not the usual percentile intervals (PI).
+* `n_eff` is a crude estimate on the number of samples that we got 
+* `Rhat4` is a complicated estimate of the convergence of the Markov chains to the target distribution. 
+
+## Sampling in Parallel
+
+Once the initial Stan model has been compiled, we can draw more samples from it at any time, and can also run as many independent Markov chains as we like. Below, we will be running four independent Markov chains for the model.
+
+```{r}
+m8.1stan_4chains <- map2stan(
+  m8.1stan, 
+  chains = 4,
+  cores = 4
+)
+```
+
+
+```{r}
+precis(m8.1stan_4chains)
+```
+
+## Visualizing the samples.
+
+Let us visualize the samples derived from the Markov chains.
+
+```{r}
+pairs(m8.1stan)
+```
+
+The above is a matrix of bivariate scatter plots. 
+* Along the diagonals, the smoothed histogram of each parameter is shown
+* Below each parameter, the correlation between the two parameters is shown. 
+
+## Using the samples. 
+
+The samples are extracted from a Markov chain as follows:
+
+```{r}
+post <- extract.samples(m8.1stan)
+```
+
+We can display the DIC and WAIC of the samples by the following:
+
+```{r}
+show(m8.1stan)
+```
+
+## Checking the chain
+
+We can check whether a Markov chain has been defined correctly with the aid of a trace plot. 
+
+```{r}
+plot(m8.1stan)
+```
+
+The trace plot above simply plots the samples in sequential order. 
+
+* The gray regions in each of the plots above shows the `adaptation` samples, which are the first 1000 samples during which the Markov chain is still learning how to efficiently sample from the posterior. The grey region samples are automatically discarded from the `extract.samples` function. 
+
+To determine whether a Markov chain is healthy, we need the following two criteria to be met:
+
+1) Stationarity. This means that the path remains in the posterior distribution, which can be seen in the plots above because each plot has a stable central tendency value.
+
+2) Good mixing. This means that each successive sample is not highly correlated with the sample before it. This can be demonstrated by rapid zig-zag notion of all paths. 
